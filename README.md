@@ -26,13 +26,17 @@ Ce projet est un script avec interface graphique permettant de générer automat
 
 ## Installation & Utilisation
 
-1. Clonez ce dépôt :
+1. Installez Git (Google search)
+2. Clonez ce dépôt :
    ```bash
    git clone https://github.com/albatror/Livret-Numerique-Competences.git
    ```
-2. Placez votre fichier de compétences au format texte dans le répertoire du projet.
-3. Lancez le script principal (voir documentation interne pour le nom exact du fichier à exécuter).
-4. Suivez l’interface pour saisir les informations de l’élève, choisir les compétences et générer le livret PowerPoint.
+   pip install pillow
+   pip install python-pptx
+
+3. Placez votre fichier de compétences au format texte dans le répertoire du projet.
+4. Lancez le script principal (voir documentation interne pour le nom exact du fichier à exécuter).
+5. Suivez l’interface pour saisir les informations de l’élève, choisir les compétences et générer le livret PowerPoint.
 
 ## Dépendances
 
