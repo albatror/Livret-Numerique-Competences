@@ -8,6 +8,8 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT, MSO_AUTO_SIZE
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.dml import MSO_THEME_COLOR
+from pptx.chart.data import CategoryChartData
+from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION
 import json
 import os
 from collections import OrderedDict
@@ -1044,6 +1046,9 @@ class CompetenceApp:
                     # Exporter images de la page courante
                     self.export_page_images(slide, prs, d, pi)
 
+            # Page finale de synthèse (board)
+            self.build_summary_slide(prs)
+
             prs.save(path)
             messagebox.showinfo("Succès", f"PowerPoint sauvegardé : {path}")
         except Exception as e:
@@ -1125,9 +1130,8 @@ class CompetenceApp:
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
 
-        # Colonne droite: photo (plus de "Sections complétées")
+        # Colonne droite: photo
         if right_w > 0:
-            # Photo en haut à droite, dans la page
             if self.photo_path and os.path.exists(self.photo_path):
                 try:
                     max_photo_h = Inches(1.8)
@@ -1214,6 +1218,170 @@ class CompetenceApp:
                     slide.shapes.add_picture(img["path"], lx, ly, width=w, height=h)
             except Exception:
                 pass
+
+    # -------------------- Synthèse (statistiques + slide finale) --------------------
+
+    def compute_stats(self):
+        """
+        Calcule:
+        - total de compétences par domaine et par sous-domaine (à partir de self.available)
+        - acquis (sélectionnés) par domaine et sous-domaine (à partir de self.selected_items)
+        Retourne:
+        {
+           "per_domain": {domain: {"total": int, "acquired": int, "pct": float in [0,1]}},
+           "per_subdomain": {domain: {sub: {"total": int, "acquired": int, "pct": float}}},
+        }
+        """
+        per_domain_total = {d: 0 for d in self.domain_order}
+        per_domain_acq = {d: 0 for d in self.domain_order}
+        per_sub_total = {d: {} for d in self.domain_order}
+        per_sub_acq = {d: {} for d in self.domain_order}
+
+        # Totaux depuis le référentiel chargé
+        for d in self.domain_order:
+            submap = self.available.get(d, {})
+            for sd, lst in submap.items():
+                count = len(lst)
+                per_domain_total[d] += count
+                per_sub_total[d][sd] = per_sub_total[d].get(sd, 0) + count
+
+        # Acquis depuis la sélection
+        for it in self.selected_items:
+            d = it.domain
+            sd = it.subdomain or d
+            if d not in per_domain_acq:
+                # domaine ajouté dynamiquement non présent au moment du chargement ? on le crée
+                per_domain_total[d] = per_domain_total.get(d, 0)
+                per_domain_acq[d] = per_domain_acq.get(d, 0)
+                per_sub_total.setdefault(d, {})
+                per_sub_acq.setdefault(d, {})
+            per_domain_acq[d] = per_domain_acq.get(d, 0) + 1
+            per_sub_acq[d][sd] = per_sub_acq[d].get(sd, 0) + 1
+
+        # Pourcentages
+        per_domain = {}
+        for d in per_domain_total.keys():
+            tot = per_domain_total.get(d, 0)
+            acq = per_domain_acq.get(d, 0)
+            pct = (acq / tot) if tot > 0 else 0.0
+            per_domain[d] = {"total": tot, "acquired": acq, "pct": pct}
+
+        per_subdomain = {}
+        for d in per_sub_total.keys():
+            per_subdomain[d] = {}
+            for sd, tot in per_sub_total[d].items():
+                acq = per_sub_acq.get(d, {}).get(sd, 0)
+                pct = (acq / tot) if tot > 0 else 0.0
+                per_subdomain[d][sd] = {"total": tot, "acquired": acq, "pct": pct}
+
+        return {"per_domain": per_domain, "per_subdomain": per_subdomain}
+
+    def build_summary_slide(self, prs):
+        """
+        Crée une diapo finale avec:
+        - Un titre "Synthèse des acquisitions"
+        - Un graphique en barres des % par domaine
+        - Un bloc texte détaillant % par sous-domaine, auto-ajusté
+        """
+        stats = self.compute_stats()
+        per_domain = stats["per_domain"]
+        per_subdomain = stats["per_subdomain"]
+
+        slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
+
+        sw = prs.slide_width
+        sh = prs.slide_height
+
+        # Bandeau de titre
+        rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), sw, Inches(0.7))
+        rect.fill.solid()
+        r, g, b = self.hex_to_rgb(COVER_HEADER_COLOR)
+        rect.fill.fore_color.rgb = RGBColor(r, g, b)
+        rect.line.fill.background()
+
+        tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.05), sw - Inches(0.8), Inches(0.6))
+        tf = tb.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        p.text = "Synthèse des acquisitions"
+        p.font.size = Pt(22)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(255, 255, 255)
+
+        # Graphique barres des domaines (valeurs en pourcentage)
+        cat_data = CategoryChartData()
+        cats = []
+        vals = []
+        for d in self.domain_order:
+            cats.append(d)
+            vals.append(per_domain.get(d, {"pct": 0.0})["pct"])  # décimal 0..1
+        # Si aucun domaine, rien à faire
+        if cats:
+            cat_data.categories = cats
+            cat_data.add_series("Acquis (%)", vals)
+
+            chart_left = Inches(0.6)
+            chart_top = Inches(0.9)
+            chart_width = sw - Inches(1.2)
+            chart_height = Inches(3.2)
+            chart_shape = slide.shapes.add_chart(
+                XL_CHART_TYPE.COLUMN_CLUSTERED, chart_left, chart_top, chart_width, chart_height, cat_data
+            )
+            chart = chart_shape.chart
+            # Axe valeurs en %
+            chart.value_axis.maximum_scale = 1.0
+            chart.value_axis.minimum_scale = 0.0
+            chart.value_axis.number_format = "0%"
+            # Libellés de données
+            plot = chart.plots[0]
+            plot.has_data_labels = True
+            dlabels = plot.data_labels
+            dlabels.number_format = "0%"
+            dlabels.show_value = True
+            dlabels.position = XL_LABEL_POSITION.OUTSIDE_END
+
+        # Détails par sous-domaine (texte auto-fit)
+        box_left = Inches(0.6)
+        box_top = Inches(4.3)
+        box_width = sw - Inches(1.2)
+        box_height = sh - box_top - Inches(0.6)
+
+        tb2 = slide.shapes.add_textbox(box_left, box_top, box_width, box_height)
+        tf2 = tb2.text_frame
+        tf2.clear()
+        tf2.word_wrap = True
+        tf2.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+
+        if not self.domain_order:
+            p = tf2.paragraphs[0]
+            p.text = "Aucun domaine chargé."
+            p.font.size = Pt(14)
+            return
+
+        para_first = True
+        for d in self.domain_order:
+            # En-tête domaine
+            if para_first:
+                p = tf2.paragraphs[0]
+                para_first = False
+            else:
+                p = tf2.add_paragraph()
+            p.text = f"{d} — {int(round(per_domain.get(d, {'pct':0})['pct']*100))}% acquis " \
+                     f"({per_domain.get(d, {'acquired':0})['acquired']}/{per_domain.get(d, {'total':0})['total']})"
+            p.font.size = Pt(14)
+            p.font.bold = True
+            # Couleur domaine
+            r, g, b = self.hex_to_rgb(self.domain_states.get(d, DomainState(d, "#000000")).color)
+            p.font.color.rgb = RGBColor(r, g, b)
+
+            # Lignes sous-domaines
+            subs = per_subdomain.get(d, {})
+            for sd in subs.keys():
+                info = subs[sd]
+                sp = tf2.add_paragraph()
+                sp.level = 1
+                sp.text = f"{sd}: {int(round(info['pct']*100))}% ({info['acquired']}/{info['total']})"
+                sp.font.size = Pt(12)
 
     # -------------------- Utils --------------------
 
