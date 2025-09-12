@@ -983,9 +983,14 @@ class CompetenceApp:
     # -------------------- Export PowerPoint --------------------
 
     def export_ppt(self):
-        path = filedialog.asksaveasfilename(title="Créer PowerPoint",
-                                            defaultextension=".pptx",
-                                            filetypes=[("PowerPoint", "*.pptx")])
+        # Propose NOM_PRENOM.pptx comme nom initial
+        suggested = self._default_ppt_filename()
+        path = filedialog.asksaveasfilename(
+            title="Créer PowerPoint",
+            defaultextension=".pptx",
+            filetypes=[("PowerPoint", "*.pptx")],
+            initialfile=suggested
+        )
         if not path:
             return
         try:
@@ -1133,8 +1138,8 @@ class CompetenceApp:
                 except Exception:
                     pass
 
-        # Détails des sections: pleine largeur sous les colonnes
-        details_top = max(left_top + left_h, content_top + Inches(0.0)) + Inches(0.25)
+        # Détails des sections: pleine largeur sous les colonnes (remonté légèrement)
+        details_top = max(left_top + left_h, content_top + Inches(0.0)) + Inches(0.10)
         details_h = max(Inches(1.5), sh - details_top - Inches(0.6))
 
         tb4 = slide.shapes.add_textbox(Inches(0.6), details_top, sw - Inches(1.2), details_h)
@@ -1216,6 +1221,27 @@ class CompetenceApp:
     def hex_to_rgb(hx):
         hx = hx.lstrip("#")
         return tuple(int(hx[i:i+2], 16) for i in (0, 2, 4))
+
+    @staticmethod
+    def sanitize_filename(name: str) -> str:
+        # Remplace caractères invalides Windows et normalise
+        invalid = '<>:"/\\|?*'
+        for ch in invalid:
+            name = name.replace(ch, "_")
+        name = name.strip().replace(" ", "_")
+        # Garde lettres/chiffres/_/-
+        name = "".join(c if (c.isalnum() or c in ("_", "-")) else "_" for c in name)
+        # Évite les doubles underscores
+        while "__" in name:
+            name = name.replace("__", "_")
+        return name.strip("_") or "presentation"
+
+    def _default_ppt_filename(self) -> str:
+        nom = (self.nom_var.get() or "").strip()
+        prenom = (self.prenom_var.get() or "").strip()
+        base = f"{nom}_{prenom}".strip("_") if (nom or prenom) else "presentation"
+        base = self.sanitize_filename(base)
+        return f"{base}.pptx"
 
 
 # ===================== Lancement =====================
