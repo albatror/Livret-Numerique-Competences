@@ -37,7 +37,9 @@ Ce projet est un script avec interface graphique permettant de générer automat
 ## Dépendances
 
 - Python 3.x
-- Bibliothèques utilisées : (à compléter selon vos besoins, ex: `tkinter`, `python-pptx`, etc.)
+- Bibliothèques utilisées :
+    (*) pillow
+    (*) python-pptx
 
 ## Exemple de fichier de compétences
 
