@@ -38,8 +38,8 @@ Ce projet est un script avec interface graphique permettant de générer automat
 
 - Python 3.x
 - Bibliothèques utilisées :
-    (*) pillow
-    (*) python-pptx
+    - pillow
+    - python-pptx
 
 ## Exemple de fichier de compétences
 
