@@ -5,8 +5,9 @@ from PIL import Image, ImageTk
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT, MSO_AUTO_SIZE
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.dml import MSO_THEME_COLOR
 import json
 import os
 from collections import OrderedDict
@@ -32,6 +33,7 @@ DEFAULT_SUBHEADER_BOLD = True
 DEFAULT_SUBHEADER_UNDERLINE = True
 DEFAULT_TITLE_FG = "white"
 COVER_HEADER_COLOR = "#6e6e6e"  # gris bandeau couverture
+COVER_PERSONAL_BG_PREVIEW = "#6B8E23"  # olive drab approx pour l'aperçu
 
 # Palette de couleurs pour domaines (assignation automatique)
 DOMAIN_COLORS = [
@@ -60,8 +62,6 @@ class DomainState:
     def __init__(self, name, color):
         self.name = name
         self.color = color  # hex
-        # images: list of dicts {path, pil, tk, pos[x,y], size[w,h]}
-        self.images = []
         self.font_body = DEFAULT_BODY_FONT
 
 
@@ -95,6 +95,10 @@ class CompetenceApp:
         self.flat_pages = []            # list of (domain, page_index) pour navigation globale
         self.current_flat_index = 0     # index dans flat_pages
         self.current_domain = None      # domaine actif (déduit de flat_pages)
+
+        # Images par page (clé = (domain, page_index) -> list d'images)
+        # image dict: {path, pil, tk, pos[x,y], size[w,h]}
+        self.page_images = {}
 
         # Infos couverture (uniquement personnelles)
         self.nom_var = tk.StringVar()
@@ -210,7 +214,7 @@ class CompetenceApp:
         btns_center.pack(side="left", fill="y", padx=6)
         ttk.Button(btns_center, text="Retirer <-", command=self.remove_selected_from_ppt).pack(pady=4, fill="x")
         ttk.Button(btns_center, text="Aller à la page", command=self.goto_selected_page).pack(pady=4, fill="x")
-        ttk.Button(btns_center, text="Ajouter image (domaine)", command=self.add_image_domain).pack(pady=12, fill="x")
+        ttk.Button(btns_center, text="Ajouter image (page)", command=self.add_image_page).pack(pady=12, fill="x")
         ttk.Button(btns_center, text="Police/Couleur (domaine)", command=self.change_font_color).pack(pady=4, fill="x")
         ttk.Button(btns_center, text="Sauvegarder projet", command=self.save_project).pack(pady=12, fill="x")
         ttk.Button(btns_center, text="Charger projet", command=self.load_project).pack(pady=4, fill="x")
@@ -239,7 +243,7 @@ class CompetenceApp:
         self.preview_canvas = tk.Canvas(self.preview_frame, width=PREVIEW_WIDTH, height=PREVIEW_HEIGHT, bg="white")
         self.preview_canvas.pack(fill="both", expand=True)
 
-        # drag/resize images sur domaine courant
+        # drag/resize images sur page courante
         self.preview_canvas.bind("<Button-1>", self.start_drag)
         self.preview_canvas.bind("<B1-Motion>", self.drag_image)
         self.preview_canvas.bind("<Button-3>", self.start_resize)
@@ -312,6 +316,7 @@ class CompetenceApp:
         self.domain_page_map.clear()
         self.item_page_index.clear()
         self.flat_pages.clear()
+        self.page_images.clear()
         self.current_flat_index = 0
         self.current_domain = None
 
@@ -473,29 +478,33 @@ class CompetenceApp:
                     self.update_preview()
                 return
 
-    # -------------------- Images (domaine) --------------------
+    # -------------------- Images (par page) --------------------
 
-    def add_image_domain(self):
-        # Ajoute des images au domaine actuellement visible dans l'aperçu
+    def _current_page_key(self):
         if not self.flat_pages:
-            messagebox.showinfo("Info", "Aucune page domaine n'est disponible.")
+            return None
+        return self.flat_pages[self.current_flat_index]  # (domain, page_index)
+
+    def add_image_page(self):
+        # Ajoute des images à la page actuellement visible dans l'aperçu
+        key = self._current_page_key()
+        if not key:
+            messagebox.showinfo("Info", "Aucune page n'est disponible.")
             return
-        domain, _ = self.flat_pages[self.current_flat_index]
-        ds = self.domain_states.get(domain)
-        if not ds:
-            return
+        domain, page_index = key
         paths = filedialog.askopenfilenames(
             title="Sélectionnez une ou plusieurs images",
             filetypes=[("Images", "*.png;*.jpg;*.jpeg;*.bmp")]
         )
         if not paths:
             return
+        imgs = self.page_images.setdefault((domain, page_index), [])
         for p in paths:
             try:
                 pil = Image.open(p)
                 pil.thumbnail((360, 360), Image.LANCZOS)
                 tkimg = ImageTk.PhotoImage(pil)
-                ds.images.append({
+                imgs.append({
                     "path": p,
                     "pil": pil,
                     "tk": tkimg,
@@ -523,29 +532,37 @@ class CompetenceApp:
         self.update_preview()
 
     # Drag & drop / resize
-    def start_drag(self, event):
-        if not self.flat_pages:
-            return
-        domain, _ = self.flat_pages[self.current_flat_index]
-        ds = self.domain_states.get(domain)
-        if not ds:
-            return
-        for i, img in enumerate(ds.images):
+    def _hit_test_image(self, event):
+        key = self._current_page_key()
+        if not key:
+            return None, None
+        imgs = self.page_images.get(key, [])
+        for i, img in enumerate(reversed(imgs)):
+            # itérer à l'envers pour sélectionner l'image au-dessus si superposition
+            real_index = len(imgs) - 1 - i
             x, y = img["pos"]
             w, h = img["size"]
             if x <= event.x <= x + w and y <= event.y <= y + h:
-                self.drag_data = {"image_index": i, "x": event.x, "y": event.y}
-                return
+                return imgs, real_index
+        return imgs, None
+
+    def start_drag(self, event):
+        imgs, idx = self._hit_test_image(event)
+        if idx is None:
+            return
+        self.drag_data = {"image_index": idx, "x": event.x, "y": event.y}
 
     def drag_image(self, event):
+        key = self._current_page_key()
+        if not key:
+            return
         idx = self.drag_data.get("image_index")
-        if idx is None or not self.flat_pages:
+        if idx is None:
             return
-        domain, _ = self.flat_pages[self.current_flat_index]
-        ds = self.domain_states.get(domain)
-        if not ds:
+        imgs = self.page_images.get(key, [])
+        if idx >= len(imgs):
             return
-        img = ds.images[idx]
+        img = imgs[idx]
         dx = event.x - self.drag_data["x"]
         dy = event.y - self.drag_data["y"]
         img["pos"][0] += dx
@@ -555,28 +572,22 @@ class CompetenceApp:
         self.update_preview()
 
     def start_resize(self, event):
-        if not self.flat_pages:
+        imgs, idx = self._hit_test_image(event)
+        if idx is None:
             return
-        domain, _ = self.flat_pages[self.current_flat_index]
-        ds = self.domain_states.get(domain)
-        if not ds:
-            return
-        for i, img in enumerate(ds.images):
-            x, y = img["pos"]
-            w, h = img["size"]
-            if x <= event.x <= x + w and y <= event.y <= y + h:
-                self.resize_data = {"image_index": i, "start_x": event.x, "start_y": event.y}
-                return
+        self.resize_data = {"image_index": idx, "start_x": event.x, "start_y": event.y}
 
     def resize_image(self, event):
+        key = self._current_page_key()
+        if not key:
+            return
         idx = self.resize_data.get("image_index")
-        if idx is None or not self.flat_pages:
+        if idx is None:
             return
-        domain, _ = self.flat_pages[self.current_flat_index]
-        ds = self.domain_states.get(domain)
-        if not ds:
+        imgs = self.page_images.get(key, [])
+        if idx >= len(imgs):
             return
-        img = ds.images[idx]
+        img = imgs[idx]
         dx = event.x - self.resize_data["start_x"]
         dy = event.y - self.resize_data["start_y"]
         new_w = max(30, img["size"][0] + dx)
@@ -642,9 +653,14 @@ class CompetenceApp:
         c.create_text(PREVIEW_WIDTH // 2, COVER_HEADER_HEIGHT // 2, text="PROFIL DE L'ELEVE", fill="white",
                       font=("Arial", 16, "bold"))
 
-        # Zone texte à gauche (infos personnelles)
+        # Zone texte à gauche (infos personnelles) avec fond olive
         x = TEXT_MARGIN_X
         y = COVER_HEADER_HEIGHT + 10
+        bg_w = 420
+        bg_h = 90
+        c.create_rectangle(x - 10, y - 8, x - 10 + bg_w, y - 8 + bg_h,
+                           fill=COVER_PERSONAL_BG_PREVIEW, outline=COVER_PERSONAL_BG_PREVIEW)
+
         lines = []
         if self.nom_var.get().strip():
             lines.append(f"Nom: {self.nom_var.get().strip()}")
@@ -653,26 +669,12 @@ class CompetenceApp:
         if self.naissance_var.get().strip():
             lines.append(f"Date de naissance: {self.naissance_var.get().strip()}")
 
+        ty = y
         for line in lines:
-            c.create_text(x, y, anchor="nw", text=line, font=("Arial", 11), fill="black")
-            y += 18
+            c.create_text(x, ty, anchor="nw", text=line, font=("Arial", 11, "bold"), fill="white")
+            ty += 22
 
-        # Sections complétées (italique)
-        sec_y = COVER_HEADER_HEIGHT + 10
-        sec_x = PREVIEW_WIDTH - 520
-        c.create_text(sec_x, sec_y, anchor="nw", text="Sections complétées:", font=("Arial", 11, "bold"))
-        sec_y += 18
-        if self.personal_completed:
-            c.create_text(sec_x, sec_y, anchor="nw", text="Informations personnelles (Section complétée)",
-                          font=("Arial", 11, "italic"))
-            sec_y += 16
-        for key in SECTION_KEYS:
-            if self.sections_data[key]["completed"]:
-                c.create_text(sec_x, sec_y, anchor="nw",
-                              text=f"{SECTION_LABELS[key]} (Section complétée)", font=("Arial", 11, "italic"))
-                sec_y += 16
-
-        # Photo (si fournie) - mini-aperçu
+        # Photo (si fournie) - mini-aperçu à droite
         if self.photo_path and os.path.exists(self.photo_path):
             try:
                 pil = Image.open(self.photo_path)
@@ -802,11 +804,10 @@ class CompetenceApp:
         max_text_width = PREVIEW_WIDTH - 2 * TEXT_MARGIN_X - 10
 
         page = pages[pi] if 0 <= pi < len(pages) else []
-        first_para_drawn = False
         for is_header, sub, payload in page:
             if is_header:
                 c.create_text(x, y, anchor="nw", text=sub, fill=ds.color,
-                              font=("Arial", 13, "bold", "underline"))
+                    font=("Arial", 13, "bold", "underline"))
                 y += 22
             else:
                 wrapped = self.wrap_text(payload.text, max_text_width, body_font)
@@ -817,8 +818,9 @@ class CompetenceApp:
                     y += (ds.font_body[1] + LINE_SPACING)
                 y += SUBHEADER_SPACING
 
-        # Images du domaine
-        for img in ds.images:
+        # Images de la page courante
+        key = (d, pi)
+        for img in self.page_images.get(key, []):
             c.create_image(img["pos"][0], img["pos"][1], image=img["tk"], anchor="nw")
 
     def wrap_text(self, text, max_width_px, font_tuple):
@@ -854,12 +856,19 @@ class CompetenceApp:
                 d: {
                     "color": self.domain_states[d].color,
                     "font_body": self.domain_states[d].font_body,
-                    "images": [
-                        {"path": im["path"], "pos": im["pos"], "size": im["size"]}
-                        for im in self.domain_states[d].images
-                    ]
                 } for d in self.domain_order
             },
+            "page_images": [
+                {
+                    "domain": d,
+                    "page_index": pi,
+                    "images": [
+                        {"path": im["path"], "pos": im["pos"], "size": im["size"]}
+                        for im in imgs
+                    ]
+                }
+                for (d, pi), imgs in self.page_images.items()
+            ],
             "infos": {
                 "nom": self.nom_var.get(),
                 "prenom": self.prenom_var.get(),
@@ -906,18 +915,6 @@ class CompetenceApp:
             color = domdata.get(d, {}).get("color", DOMAIN_COLORS[idx % len(DOMAIN_COLORS)])
             ds = DomainState(d, color)
             ds.font_body = tuple(domdata.get(d, {}).get("font_body", DEFAULT_BODY_FONT))
-            for im in domdata.get(d, {}).get("images", []):
-                p = im["path"]
-                try:
-                    pil = Image.open(p).resize((int(im["size"][0]), int(im["size"][1])), Image.LANCZOS)
-                    tkimg = ImageTk.PhotoImage(pil)
-                    ds.images.append({
-                        "path": p, "pil": pil, "tk": tkimg,
-                        "pos": [int(im["pos"][0]), int(im["pos"][1])],
-                        "size": [int(im["size"][0]), int(im["size"][1])]
-                    })
-                except Exception:
-                    pass
             self.domain_states[d] = ds
 
         self.selected_items = []
@@ -952,9 +949,35 @@ class CompetenceApp:
                     ent, var = self.sections_widgets[key]["entries"][fname]
                     var.set(val)
 
+        # Rebuild pages first to know page indices
         self.build_available_tree()
         self.refresh_selected_tree()
         self.rebuild_pages_and_refresh()
+
+        # Restaurer images par page
+        self.page_images.clear()
+        for rec in data.get("page_images", []):
+            d = rec.get("domain")
+            pi = int(rec.get("page_index", 0))
+            imgs = []
+            for im in rec.get("images", []):
+                p = im.get("path")
+                pos = im.get("pos", [60, HEADER_HEIGHT + 30])
+                size = im.get("size", [120, 120])
+                try:
+                    pil = Image.open(p).resize((int(size[0]), int(size[1])), Image.LANCZOS)
+                    tkimg = ImageTk.PhotoImage(pil)
+                    imgs.append({
+                        "path": p, "pil": pil, "tk": tkimg,
+                        "pos": [int(pos[0]), int(pos[1])],
+                        "size": [int(size[0]), int(size[1])]
+                    })
+                except Exception:
+                    pass
+            if imgs:
+                self.page_images[(d, pi)] = imgs
+
+        self.update_preview()
         messagebox.showinfo("Chargement", "Projet chargé avec succès")
 
     # -------------------- Export PowerPoint --------------------
@@ -972,14 +995,12 @@ class CompetenceApp:
 
             # Pages domaines
             self.rebuild_pages_and_refresh()
-            any_domain_page = False
             for d in self.domain_order:
                 pages = self.domain_page_map.get(d, [])
                 if not pages:
                     continue
-                any_domain_page = True
                 ds = self.domain_states[d]
-                for page in pages:
+                for pi, page in enumerate(pages):
                     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
                     # Bandeau domaine
                     self.add_domain_banner(slide, prs, d, ds.color)
@@ -991,6 +1012,7 @@ class CompetenceApp:
                     tf_shape = slide.shapes.add_textbox(left, top, width, height)
                     tf = tf_shape.text_frame
                     tf.clear()
+                    tf.word_wrap = True
 
                     first_written = False
                     # Rendu contenu
@@ -1014,12 +1036,8 @@ class CompetenceApp:
                             p.font.bold = False
                             p.space_after = Pt(2)
 
-                    # Exporter images du domaine (même placement relatif)
-                    self.export_domain_images(slide, ds, prs)
-
-            if not any_domain_page:
-                # Pas de pages de domaines: on conserve la couverture seule
-                pass
+                    # Exporter images de la page courante
+                    self.export_page_images(slide, prs, d, pi)
 
             prs.save(path)
             messagebox.showinfo("Succès", f"PowerPoint sauvegardé : {path}")
@@ -1052,9 +1070,9 @@ class CompetenceApp:
         p.font.color.rgb = RGBColor(255, 255, 255)
         p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
 
-        # Mise en page: colonne gauche (infos personnelles) + colonne droite (photo + sections complétées)
+        # Mise en page: colonne gauche (infos personnelles) + colonne droite (photo)
         gap = Inches(0.2)
-        right_w = Inches(3.6)  # largeur cible colonne droite
+        right_w = Inches(3.6)  # largeur colonne droite
         right_w = min(right_w, sw - 2 * margin)  # sécurité
         right_left = sw - margin - right_w
 
@@ -1066,10 +1084,19 @@ class CompetenceApp:
             left_w = sw - 2 * margin
             right_w = 0
 
-        # Colonne gauche: infos personnelles
+        # Colonne gauche: fond olive (Accent 3) + infos personnelles
         left_top = content_top
         left_h = Inches(2.6)
-        tb2 = slide.shapes.add_textbox(left_left, left_top, left_w, left_h)
+
+        # rectangle de fond olive
+        rect_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left_left, left_top, left_w, left_h)
+        rect_bg.fill.solid()
+        # Utiliser la couleur de thème Accent 3 (vert olive du thème)
+        rect_bg.fill.fore_color.theme_color = MSO_THEME_COLOR.ACCENT_3
+        rect_bg.line.fill.background()
+
+        # Texte par-dessus (blanc, gras)
+        tb2 = slide.shapes.add_textbox(left_left + Inches(0.15), left_top + Inches(0.12), left_w - Inches(0.3), left_h - Inches(0.24))
         tf2 = tb2.text_frame
         tf2.clear()
         lines = []
@@ -1090,11 +1117,10 @@ class CompetenceApp:
                 p = tf2.add_paragraph()
                 p.text = line
             p.font.size = Pt(14)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
 
-        # Colonne droite: photo + "Sections complétées"
-        sec_box_top = content_top  # sera recalé sous la photo si elle existe
-        sec_box_h = Inches(2.6)
-
+        # Colonne droite: photo (plus de "Sections complétées")
         if right_w > 0:
             # Photo en haut à droite, dans la page
             if self.photo_path and os.path.exists(self.photo_path):
@@ -1104,39 +1130,20 @@ class CompetenceApp:
                     # Recalage top/right
                     pic.left = right_left + right_w - pic.width
                     pic.top = content_top
-                    sec_box_top = pic.top + pic.height + Inches(0.15)
                 except Exception:
                     pass
 
-            # Bloc "Sections complétées" sous la photo, à droite
-            tb3 = slide.shapes.add_textbox(right_left, sec_box_top, right_w, sec_box_h)
-            tf3 = tb3.text_frame
-            tf3.clear()
-            p = tf3.paragraphs[0]
-            p.text = "Sections complétées:"
-            p.font.size = Pt(14)
-            p.font.bold = True
-
-            if self.personal_completed:
-                p = tf3.add_paragraph()
-                p.text = "Informations personnelles (Section complétée)"
-                p.font.size = Pt(12)
-                p.font.italic = True
-
-            for key in SECTION_KEYS:
-                if self.sections_data[key]["completed"]:
-                    p = tf3.add_paragraph()
-                    p.text = f"{SECTION_LABELS[key]} (Section complétée)"
-                    p.font.size = Pt(12)
-                    p.font.italic = True
-
-        # Détails des sections complétées: sous les colonnes, pleine largeur
-        details_top = max(left_top + left_h, sec_box_top + sec_box_h if right_w > 0 else left_top + left_h) + Inches(0.25)
+        # Détails des sections: pleine largeur sous les colonnes
+        details_top = max(left_top + left_h, content_top + Inches(0.0)) + Inches(0.25)
         details_h = max(Inches(1.5), sh - details_top - Inches(0.6))
 
         tb4 = slide.shapes.add_textbox(Inches(0.6), details_top, sw - Inches(1.2), details_h)
         tf4 = tb4.text_frame
         tf4.clear()
+        tf4.word_wrap = True
+        # Réduire automatiquement la taille du texte pour tenir dans la forme
+        tf4.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+
         any_detail = False
         for key in SECTION_KEYS:
             if not self.sections_data[key]["completed"]:
@@ -1155,7 +1162,7 @@ class CompetenceApp:
                 p = tf4.add_paragraph()
                 p.text = f"{flabel}: {val}"
                 p.level = 1
-                p.font.size = Pt(11)
+                p.font.size = Pt(12)
         if not any_detail:
             p = tf4.paragraphs[0]
             p.text = " "
@@ -1187,11 +1194,12 @@ class CompetenceApp:
         p.font.bold = True
         p.font.color.rgb = RGBColor(255, 255, 255)
 
-    def export_domain_images(self, slide, ds, prs):
-        # Map coordonnées apercu -> slide
+    def export_page_images(self, slide, prs, domain, page_index):
+        # Map coordonnées apercu -> slide pour la page (domain, page_index)
+        key = (domain, page_index)
         sw = prs.slide_width
         sh = prs.slide_height
-        for img in ds.images:
+        for img in self.page_images.get(key, []):
             lx = int(img["pos"][0] / PREVIEW_WIDTH * sw)
             ly = int(img["pos"][1] / PREVIEW_HEIGHT * sh)
             w = int(img["size"][0] / PREVIEW_WIDTH * sw)
