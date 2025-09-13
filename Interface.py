@@ -17,14 +17,14 @@ from collections import OrderedDict
 # ===================== Configuration =====================
 
 APP_TITLE = "Compétences Pro Ultimate"
-MAX_LINES_PER_SLIDE = 20   # lignes (en-têtes + compétences) par diapositive
+MAX_LINES_PER_SLIDE = 20   # lignes (en-têtes + compétences) par diapositive (utilisé pour l'aperçu)
 LEFT_PANEL_WIDTH = 420     # largeur colonne "Compétences disponibles"
 COMP_LISTBOX_WIDTH = 62    # largeur listbox (caractères)
 PREVIEW_WIDTH = 900
 PREVIEW_HEIGHT = 520
 HEADER_HEIGHT = 48         # hauteur bandeau domaine dans l'aperçu
-SUBHEADER_SPACING = 8      # espacement après un sous-domaine
-LINE_SPACING = 6           # espacement entre lignes de compétences
+SUBHEADER_SPACING = 8      # espacement après un sous-domaine (aperçu)
+LINE_SPACING = 6           # espacement entre lignes de compétences (aperçu)
 COVER_HEADER_HEIGHT = 64   # bandeau gris couverture (mini-apercu)
 TEXT_MARGIN_X = 24
 TEXT_MARGIN_Y = 18
@@ -68,12 +68,16 @@ class DomainState:
 
 
 class CompetenceItem:
-    def __init__(self, domain, subdomain, text):
+    def __init__(self, domain, subdomain, text, ts=None, batch_id=None):
         self.domain = domain
         self.subdomain = subdomain
         self.text = text
+        # Ajouts: horodatage & lot d'ajout (pour regrouper dans le PPT)
+        self.ts = ts              # "Mois Année" ex: "Février 2023"
+        self.batch_id = batch_id  # entier, incrémenté à chaque clic "Ajouter ->"
 
     def key(self):
+        # On garde la clé d'unicité (pas de doublon exact domaine/sous-domaine/texte)
         return (self.domain, self.subdomain or "", self.text)
 
 
@@ -90,6 +94,7 @@ class CompetenceApp:
         self.domain_states = {}         # domain -> DomainState
         self.selected_items = []        # list[CompetenceItem]
         self.added_set = set()          # keys pour anti-doublon
+        self.add_batch_counter = 0      # incrémenté à chaque ajout
 
         # Aperçu global (toutes pages de tous domaines)
         self.domain_page_map = {}       # domain -> list[page] ; page = list[(is_header, subdomain, item|None)]
@@ -109,20 +114,25 @@ class CompetenceApp:
         self.photo_path = None
         self.personal_completed = False
 
-        # Sections: données et widgets (3 champs par section)
+        # Horodateur (obligatoire pour ajouter des compétences)
+        self.month_var = tk.StringVar()
+        self.year_var = tk.StringVar()
+
+        # Sections: données et widgets (3 champs + photo par section)
         self.sections_data = {
             key: {
                 "completed": False,
-                "fields": {fname: "" for fname in SECTION_FIELDS.keys()}
+                "fields": {fname: "" for fname in SECTION_FIELDS.keys()},
+                "photo": None,   # chemin photo de la section
             } for key in SECTION_KEYS
         }
-        # key -> { 'entries': {fname:(Entry,Var)}, 'completed_var': tk.BooleanVar }
+        # key -> { 'entries': {fname:(Entry,Var)}, 'completed_var': tk.BooleanVar, 'photo_label': Label }
         self.sections_widgets = {}
 
-        # Pour mesure du texte
+        # Pour mesure du texte (aperçu et estimation pour PPT)
         self.measure_font = tkfont.Font(family="Arial", size=12)
 
-        # Drag/Resize images
+        # Drag/Resize images (aperçu)
         self.drag_data = {"x": 0, "y": 0, "image_index": None}
         self.resize_data = {"image_index": None, "start_x": 0, "start_y": 0}
 
@@ -134,14 +144,14 @@ class CompetenceApp:
     # -------------------- UI --------------------
 
     def _build_ui(self):
-        self.root.geometry("1560x980")
+        self.root.geometry("1600x1000")
 
         # Ligne haute: informations personnelles + Sections onglets
         top = ttk.Frame(self.root)
         top.pack(fill="x", padx=8, pady=6)
 
-        # Section: Informations personnelles
-        pers = ttk.LabelFrame(top, text="Informations personnelles")
+        # Section: Informations personnelles + Horodatage obligatoire
+        pers = ttk.LabelFrame(top, text="Informations personnelles & Horodatage (obligatoire)")
         pers.pack(side="left", padx=6, pady=4, fill="x", expand=True)
 
         ttk.Label(pers, text="Nom:").grid(row=0, column=0, sticky="w")
@@ -155,6 +165,12 @@ class CompetenceApp:
 
         ttk.Button(pers, text="Importer photo", command=self._import_photo).grid(row=0, column=6, padx=6)
         ttk.Button(pers, text="Marquer comme complétée", command=self._mark_personal_completed).grid(row=0, column=7, padx=6)
+
+        # Ligne des champs horodatage (obligatoires)
+        ttk.Label(pers, text="Mois (ex: Février):").grid(row=1, column=0, sticky="w", pady=(6,0))
+        ttk.Entry(pers, textvariable=self.month_var, width=14).grid(row=1, column=1, sticky="w", padx=4, pady=(6,0))
+        ttk.Label(pers, text="Année (ex: 2023):").grid(row=1, column=2, sticky="w", pady=(6,0))
+        ttk.Entry(pers, textvariable=self.year_var, width=10).grid(row=1, column=3, sticky="w", padx=4, pady=(6,0))
 
         # Bloc Sections (TPS/PS/MS/GS) via Notebook
         sections_block = ttk.LabelFrame(self.root, text="Sections de cycle (mémorisées indépendamment)")
@@ -263,14 +279,14 @@ class CompetenceApp:
         completed_var = tk.BooleanVar(value=False)
         chk = ttk.Checkbutton(frame, text="Marquer cette section comme complétée",
                               variable=completed_var, command=lambda k=key: self._toggle_section_completed(k))
-        chk.grid(row=0, column=0, columnspan=2, sticky="w", pady=(6, 2))
+        chk.grid(row=0, column=0, columnspan=3, sticky="w", pady=(6, 2))
 
         entries = {}
         r = 1
         for fname, flabel in SECTION_FIELDS.items():
             ttk.Label(frame, text=flabel + " :").grid(row=r, column=0, sticky="e", padx=(0, 6), pady=(6, 2))
             var = tk.StringVar()
-            ent = ttk.Entry(frame, width=60, textvariable=var)
+            ent = ttk.Entry(frame, width=32, textvariable=var)  # largeur réduite
             ent.grid(row=r, column=1, sticky="we", pady=(6, 2))
             # Bind mise à jour
             def on_change(var=var, k=key, fn=fname):
@@ -284,9 +300,14 @@ class CompetenceApp:
             entries[fname] = (ent, var)
             r += 1
 
-        # Boutons
+        # Boutons et photo de la section
+        ttk.Button(frame, text="Importer photo de la section", command=lambda k=key: self._import_section_photo(k)).grid(row=r, column=0, sticky="e", pady=6)
+        photo_label = ttk.Label(frame, text="Aucune photo")
+        photo_label.grid(row=r, column=1, sticky="w", pady=6)
+        r += 1
+
         btns = ttk.Frame(frame)
-        btns.grid(row=r, column=0, columnspan=2, sticky="w", pady=8)
+        btns.grid(row=r, column=0, columnspan=3, sticky="w", pady=8)
         ttk.Button(btns, text="Marquer comme complétée",
                    command=lambda k=key: self._set_section_completed(k, True)).pack(side="left", padx=2)
         ttk.Button(btns, text="Décocher",
@@ -297,7 +318,8 @@ class CompetenceApp:
         frame.grid_columnconfigure(1, weight=1)
         self.sections_widgets[key] = {
             "completed_var": completed_var,
-            "entries": entries
+            "entries": entries,
+            "photo_label": photo_label,
         }
 
     # -------------------- Chargement / parsing --------------------
@@ -399,6 +421,14 @@ class CompetenceApp:
     # -------------------- Ajout / retrait --------------------
 
     def add_selected_competences(self):
+        # Vérifier horodatage obligatoire
+        month = self.month_var.get().strip()
+        year = self.year_var.get().strip()
+        if not month or not year:
+            messagebox.showinfo("Champs requis", "Veuillez remplir les champs Mois et Année avant d'ajouter des compétences.")
+            return
+        ts = f"{month} {year}"
+
         sel = self.tree.selection()
         if not sel:
             messagebox.showinfo("Info", "Sélectionnez un sous-domaine.")
@@ -416,9 +446,13 @@ class CompetenceApp:
             messagebox.showinfo("Info", "Sélectionnez au moins une compétence.")
             return
 
+        # Nouveau lot d'ajout
+        self.add_batch_counter += 1
+        batch_id = self.add_batch_counter
+
         added_any = False
         for comp in chosen:
-            item = CompetenceItem(domain, sub, comp)
+            item = CompetenceItem(domain, sub, comp, ts=ts, batch_id=batch_id)
             if item.key() in self.added_set:
                 continue
             self.selected_items.append(item)
@@ -533,14 +567,14 @@ class CompetenceApp:
             ds.color = color
         self.update_preview()
 
-    # Drag & drop / resize
+    # Drag & drop / resize (aperçu)
     def _hit_test_image(self, event):
         key = self._current_page_key()
         if not key:
             return None, None
         imgs = self.page_images.get(key, [])
         for i, img in enumerate(reversed(imgs)):
-            # itérer à l'envers pour sélectionner l'image au-dessus si superposition
+            # sélectionner l'image au-dessus si superposition
             real_index = len(imgs) - 1 - i
             x, y = img["pos"]
             w, h = img["size"]
@@ -621,6 +655,9 @@ class CompetenceApp:
         for fname in SECTION_FIELDS.keys():
             ent, var = self.sections_widgets[key]["entries"][fname]
             var.set("")
+        # reset photo
+        self.sections_data[key]["photo"] = None
+        self.sections_widgets[key]["photo_label"].configure(text="Aucune photo")
         # recalcul auto completed
         self._recalc_section_completed(key)
         self.update_cover_preview()
@@ -639,6 +676,16 @@ class CompetenceApp:
         )
         if p:
             self.photo_path = p
+            self.update_cover_preview()
+
+    def _import_section_photo(self, key):
+        p = filedialog.askopenfilename(
+            title=f"Photo pour {SECTION_LABELS[key]}",
+            filetypes=[("Images", "*.png;*.jpg;*.jpeg;*.bmp")]
+        )
+        if p:
+            self.sections_data[key]["photo"] = p
+            self.sections_widgets[key]["photo_label"].configure(text=os.path.basename(p))
             self.update_cover_preview()
 
     def _mark_personal_completed(self):
@@ -690,7 +737,7 @@ class CompetenceApp:
     # -------------------- Pagination & Aperçu --------------------
 
     def rebuild_pages_and_refresh(self):
-        # Regroupe par domaine/sous-domaine et découpe en pages
+        # Regroupe par domaine/sous-domaine et découpe en pages (pour l'aperçu)
         self.domain_page_map.clear()
         self.item_page_index.clear()
         # ordre des domaines fixe
@@ -812,6 +859,7 @@ class CompetenceApp:
                     font=("Arial", 13, "bold", "underline"))
                 y += 22
             else:
+                # Aperçu: on affiche les compétences telles quelles (sans bandeau date)
                 wrapped = self.wrap_text(payload.text, max_text_width, body_font)
                 for li, line in enumerate(wrapped):
                     c.create_text(x + 16, y, anchor="nw",
@@ -853,7 +901,9 @@ class CompetenceApp:
         data = {
             "available": self.available,
             "domain_order": self.domain_order,
-            "selected": [(it.domain, it.subdomain, it.text) for it in self.selected_items],
+            "selected": [
+                (it.domain, it.subdomain, it.text, it.ts, it.batch_id) for it in self.selected_items
+            ],
             "domains": {
                 d: {
                     "color": self.domain_states[d].color,
@@ -876,12 +926,15 @@ class CompetenceApp:
                 "prenom": self.prenom_var.get(),
                 "naissance": self.naissance_var.get(),
                 "photo": self.photo_path,
-                "personal_completed": self.personal_completed
+                "personal_completed": self.personal_completed,
+                "month": self.month_var.get(),
+                "year": self.year_var.get(),
             },
             "sections": {
                 key: {
                     "completed": self.sections_data[key]["completed"],
-                    "fields": self.sections_data[key]["fields"]
+                    "fields": self.sections_data[key]["fields"],
+                    "photo": self.sections_data[key]["photo"],
                 } for key in SECTION_KEYS
             }
         }
@@ -921,8 +974,15 @@ class CompetenceApp:
 
         self.selected_items = []
         self.added_set = set()
-        for d, sd, txt in data.get("selected", []):
-            it = CompetenceItem(d, sd, txt)
+        for tup in data.get("selected", []):
+            # rétrocompat: (d, sd, txt) ou (d, sd, txt, ts, batch)
+            if len(tup) == 3:
+                d, sd, txt = tup
+                ts = None
+                batch_id = None
+            else:
+                d, sd, txt, ts, batch_id = tup
+            it = CompetenceItem(d, sd, txt, ts=ts, batch_id=batch_id)
             self.selected_items.append(it)
             self.added_set.add(it.key())
 
@@ -933,6 +993,8 @@ class CompetenceApp:
         self.naissance_var.set(infos.get("naissance", ""))
         self.photo_path = infos.get("photo", None)
         self.personal_completed = bool(infos.get("personal_completed", False))
+        self.month_var.set(infos.get("month", ""))
+        self.year_var.set(infos.get("year", ""))
 
         # Sections
         secdata = data.get("sections", {})
@@ -950,6 +1012,11 @@ class CompetenceApp:
                 if key in self.sections_widgets:
                     ent, var = self.sections_widgets[key]["entries"][fname]
                     var.set(val)
+            # photo
+            p = sd.get("photo", None)
+            self.sections_data[key]["photo"] = p
+            if key in self.sections_widgets:
+                self.sections_widgets[key]["photo_label"].configure(text=os.path.basename(p) if p else "Aucune photo")
 
         # Rebuild pages first to know page indices
         self.build_available_tree()
@@ -997,7 +1064,7 @@ class CompetenceApp:
             return
         try:
             prs = Presentation()
-            # Page 1: Couverture
+            # Page 1: Couverture (horizontale par sections, photos incluses)
             self.build_cover_slide(prs)
 
             # Pages domaines
@@ -1011,43 +1078,106 @@ class CompetenceApp:
                     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
                     # Bandeau domaine
                     self.add_domain_banner(slide, prs, d, ds.color)
-                    # Zone de texte
+
+                    # Zone de contenu (position de référence)
                     left = Inches(0.6)
                     top = Inches(1.2)
                     width = prs.slide_width - Inches(1.2)
                     height = prs.slide_height - Inches(1.7)
-                    tf_shape = slide.shapes.add_textbox(left, top, width, height)
-                    tf = tf_shape.text_frame
-                    tf.clear()
-                    tf.word_wrap = True
 
-                    first_written = False
-                    # Rendu contenu
+                    # On va "composer" manuellement: bandeaux date + titres sd + listes à puces
+                    # en se basant sur l'estimation d'hauteur de l'aperçu (px) -> conversion en pouces
+                    preview_y_start = HEADER_HEIGHT + 14
+                    preview_y_bottom_margin = 20
+                    content_preview_height_px = max(1, PREVIEW_HEIGHT - preview_y_start - preview_y_bottom_margin)
+
+                    def ypx_to_in(y_px):
+                        return top + (y_px - preview_y_start) / content_preview_height_px * height
+
+                    # Paramètres d'estimation
+                    y_px = preview_y_start
+                    last_ts = None
+                    body_font_size = ds.font_body[1]
+                    max_text_width_px = PREVIEW_WIDTH - 2 * TEXT_MARGIN_X - 10
+
+                    # Dessiner au fil de page
                     for is_header, sub, payload in page:
                         if is_header:
-                            p = tf.paragraphs[0] if not first_written else tf.add_paragraph()
-                            first_written = True
+                            # Titre sous-domaine
+                            tb = slide.shapes.add_textbox(left, ypx_to_in(y_px), width, Inches(0.4))
+                            tf = tb.text_frame
+                            tf.clear()
+                            p = tf.paragraphs[0]
                             p.text = sub
                             p.font.size = Pt(DEFAULT_BODY_SIZE_PT + 1)
                             p.font.bold = DEFAULT_SUBHEADER_BOLD
                             p.font.underline = DEFAULT_SUBHEADER_UNDERLINE
                             r, g, b = self.hex_to_rgb(self.domain_states[d].color)
                             p.font.color.rgb = RGBColor(r, g, b)
-                            p.space_after = Pt(2)
+                            y_px += 22  # estimation même que l'aperçu
                         else:
-                            p = tf.paragraphs[0] if not first_written else tf.add_paragraph()
-                            first_written = True
-                            p.text = f"• {payload.text}"
-                            p.level = 1
-                            p.font.size = Pt(DEFAULT_BODY_SIZE_PT)
-                            p.font.bold = False
-                            p.space_after = Pt(2)
+                            # Bandeau date si changement de ts (mois+année)
+                            ts = (payload.ts or "").strip()
+                            if ts and ts != last_ts:
+                                band_h_px = 20
+                                # rectangle noir
+                                band_shape = slide.shapes.add_shape(
+                                    MSO_SHAPE.RECTANGLE,
+                                    left, ypx_to_in(y_px),
+                                    width, Inches(0.28)  # ~ 0.28" ≈ 20 px selon estimation
+                                )
+                                band_shape.fill.solid()
+                                band_shape.fill.fore_color.rgb = RGBColor(0, 0, 0)
+                                # enlever le contour
+                                try:
+                                    band_shape.line.fill.background()
+                                except Exception:
+                                    pass
+                                # texte centré dans le bandeau
+                                tb = slide.shapes.add_textbox(left, ypx_to_in(y_px), width, Inches(0.28))
+                                tf = tb.text_frame
+                                tf.clear()
+                                p = tf.paragraphs[0]
+                                p.text = ts
+                                p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                                p.font.size = Pt(10)   # taille 10 demandée
+                                p.font.bold = False
+                                p.font.color.rgb = RGBColor(255, 255, 255)  # lisible sur fond noir
+                                y_px += band_h_px
+                                last_ts = ts
+
+                            # Ligne(s) de compétence, préfixée par le prénom
+                            prenom = (self.prenom_var.get() or "").strip()
+                            full_text = f"• {prenom} {payload.text}".strip()
+                            wrapped_lines = self.wrap_text(full_text, max_text_width_px, ("Arial", body_font_size))
+                            # Créer une zone pour le paragraphe (on laisse word_wrap)
+                            tb = slide.shapes.add_textbox(left + Inches(0.2), ypx_to_in(y_px), width - Inches(0.2), Inches(0.6))
+                            tf = tb.text_frame
+                            tf.clear()
+                            first_line = True
+                            for li, line in enumerate(wrapped_lines):
+                                p = tf.paragraphs[0] if first_line else tf.add_paragraph()
+                                p.text = line if li > 0 else line  # déjà "• " inséré
+                                p.font.size = Pt(body_font_size)
+                                p.font.bold = False
+                                p.font.color.rgb = RGBColor(0, 0, 0)
+                                if li == 0:
+                                    p.level = 0
+                                first_line = False
+                            # Estimation de la progression en px
+                            for _ in wrapped_lines:
+                                y_px += (body_font_size + LINE_SPACING)
+                            y_px += SUBHEADER_SPACING
 
                     # Exporter images de la page courante
                     self.export_page_images(slide, prs, d, pi)
 
-            # Page finale de synthèse (board)
-            self.build_summary_slide(prs)
+            # IMPORTANT: on ne crée PLUS la page finale avec graphique/pourcentages
+
+            # A la place: diapo "Synthèse" par SECTION complétée
+            for key in SECTION_KEYS:
+                if self.sections_data[key]["completed"]:
+                    self.build_section_synthesis_slide(prs, key)
 
             prs.save(path)
             messagebox.showinfo("Succès", f"PowerPoint sauvegardé : {path}")
@@ -1080,32 +1210,17 @@ class CompetenceApp:
         p.font.color.rgb = RGBColor(255, 255, 255)
         p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
 
-        # Mise en page: colonne gauche (infos personnelles) + colonne droite (photo)
-        gap = Inches(0.2)
-        right_w = Inches(3.6)  # largeur colonne droite
-        right_w = min(right_w, sw - 2 * margin)  # sécurité
-        right_left = sw - margin - right_w
-
-        left_left = margin
-        left_w = right_left - left_left - gap
-        if left_w < Inches(3.0):
-            # Si trop étroit, bascule en mono-colonne: tout en largeur
-            left_left = margin
-            left_w = sw - 2 * margin
-            right_w = 0
-
         # Colonne gauche: fond olive (Accent 3) + infos personnelles
+        left_left = margin
+        left_w = sw - 2 * margin
         left_top = content_top
-        left_h = Inches(2.6)
+        left_h = Inches(2.2)
 
-        # rectangle de fond olive
         rect_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left_left, left_top, left_w, left_h)
         rect_bg.fill.solid()
-        # Utiliser la couleur de thème Accent 3 (vert olive du thème)
         rect_bg.fill.fore_color.theme_color = MSO_THEME_COLOR.ACCENT_3
         rect_bg.line.fill.background()
 
-        # Texte par-dessus (blanc, gras)
         tb2 = slide.shapes.add_textbox(left_left + Inches(0.15), left_top + Inches(0.12), left_w - Inches(0.3), left_h - Inches(0.24))
         tf2 = tb2.text_frame
         tf2.clear()
@@ -1130,55 +1245,91 @@ class CompetenceApp:
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
 
-        # Colonne droite: photo
-        if right_w > 0:
-            if self.photo_path and os.path.exists(self.photo_path):
-                try:
-                    max_photo_h = Inches(1.8)
-                    pic = slide.shapes.add_picture(self.photo_path, Inches(0), Inches(0), height=max_photo_h)
-                    # Recalage top/right
-                    pic.left = right_left + right_w - pic.width
-                    pic.top = content_top
-                except Exception:
-                    pass
+        # Photo élève (en haut à droite dans le bandeau vert)
+        if self.photo_path and os.path.exists(self.photo_path):
+            try:
+                max_photo_h = Inches(1.6)
+                pic = slide.shapes.add_picture(self.photo_path, Inches(0), Inches(0), height=max_photo_h)
+                pic.left = left_left + left_w - pic.width - Inches(0.2)
+                pic.top = left_top + Inches(0.2)
+            except Exception:
+                pass
 
-        # Détails des sections: pleine largeur sous les colonnes (remonté légèrement)
-        details_top = max(left_top + left_h, content_top + Inches(0.0)) + Inches(0.10)
-        details_h = max(Inches(1.5), sh - details_top - Inches(0.6))
+        # Présentation HORIZONTALE des sections avec photos par section
+        row_top = left_top + left_h + Inches(0.2)
+        col_count = len(SECTION_KEYS)
+        if col_count < 1:
+            return
+        col_w = (sw - 2 * margin) / col_count
+        col_text_h = Inches(1.0)  # zone texte par colonne
+        col_photo_h = Inches(1.8) # zone photo par colonne
 
-        tb4 = slide.shapes.add_textbox(Inches(0.6), details_top, sw - Inches(1.2), details_h)
-        tf4 = tb4.text_frame
-        tf4.clear()
-        tf4.word_wrap = True
-        # Réduire automatiquement la taille du texte pour tenir dans la forme
-        tf4.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+        for idx, key in enumerate(SECTION_KEYS):
+            col_left = margin + col_w * idx
+            section_title = SECTION_LABELS[key]
+            fields = self.sections_data[key]["fields"]
+            completed = self.sections_data[key]["completed"]
 
-        any_detail = False
-        for key in SECTION_KEYS:
-            if not self.sections_data[key]["completed"]:
-                continue
-            any_detail = True
-            # Titre de section
-            p = tf4.add_paragraph()
-            p.text = SECTION_LABELS[key]
-            p.font.size = Pt(14)
+            # Bloc titre + 3 lignes
+            tb = slide.shapes.add_textbox(col_left, row_top, col_w, col_text_h)
+            tf = tb.text_frame
+            tf.clear()
+            p = tf.paragraphs[0]
+            p.text = section_title
             p.font.bold = True
-            # Champs (les 3 spécifiques)
+            p.font.size = Pt(13)
+
             for fname, flabel in SECTION_FIELDS.items():
-                val = self.sections_data[key]["fields"].get(fname, "").strip()
+                val = fields.get(fname, "").strip()
                 if not val:
                     continue
-                p = tf4.add_paragraph()
-                p.text = f"{flabel}: {val}"
-                p.level = 1
-                p.font.size = Pt(12)
-        if not any_detail:
-            p = tf4.paragraphs[0]
-            p.text = " "
-            p.font.size = Pt(1)
+                sp = tf.add_paragraph()
+                sp.text = f"{flabel}: {val}"
+                sp.level = 1
+                sp.font.size = Pt(11)
+
+            # Emplacement photo sous le bloc texte
+            ph_top = row_top + col_text_h + Inches(0.05)
+            ph_w = col_w
+            ph_h = col_photo_h
+
+            # Cadre de l'emplacement (indicatif)
+            ph_rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, col_left, ph_top, ph_w, ph_h)
+            ph_rect.fill.solid()
+            # blanc très léger pour bien voir le cadre
+            ph_rect.fill.fore_color.rgb = RGBColor(245, 245, 245)
+            ph_rect.line.fill.background()
+
+            # Photo si fournie (image section) — ajustement proportionnel pour tenir dans le cadre
+            sec_photo = self.sections_data[key]["photo"]
+            if sec_photo and os.path.exists(sec_photo):
+                try:
+                    # On essaye d'ajuster proportionnellement à la boîte ph_w x ph_h
+                    # On charge l'image pour connaître ses dimensions
+                    with Image.open(sec_photo) as im:
+                        iw, ih = im.size
+                    box_w = ph_w
+                    box_h = ph_h
+                    # pptx travaille en EMU; width/height qu'on passe sont déjà en EMU via Inches
+                    # Calcul du ratio visé
+                    img_ratio = iw / ih if ih else 1.0
+                    box_ratio = box_w / box_h if box_h else 1.0
+                    if img_ratio >= box_ratio:
+                        # Limité par la largeur
+                        pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, width=box_w)
+                        # Centrer verticalement
+                        pic.top = ph_top + (box_h - pic.height) // 2
+                    else:
+                        # Limité par la hauteur
+                        pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, height=box_h)
+                        # Centrer horizontalement
+                        pic.left = col_left + (box_w - pic.width) // 2
+                except Exception:
+                    # En cas d'échec, on laisse simplement le cadre
+                    pass
 
     def add_domain_banner(self, slide, prs, domain_name, color_hex):
-        # Utilise les dimensions de la présentation (prs), pas slide.part.presentation
+        # Utilise les dimensions de la présentation (prs)
         sw = prs.slide_width
 
         rect = slide.shapes.add_shape(
@@ -1219,169 +1370,50 @@ class CompetenceApp:
             except Exception:
                 pass
 
-    # -------------------- Synthèse (statistiques + slide finale) --------------------
+    # -------------------- Diapo Synthèse par SECTION --------------------
 
-    def compute_stats(self):
-        """
-        Calcule:
-        - total de compétences par domaine et par sous-domaine (à partir de self.available)
-        - acquis (sélectionnés) par domaine et sous-domaine (à partir de self.selected_items)
-        Retourne:
-        {
-           "per_domain": {domain: {"total": int, "acquired": int, "pct": float in [0,1]}},
-           "per_subdomain": {domain: {sub: {"total": int, "acquired": int, "pct": float}}},
-        }
-        """
-        per_domain_total = {d: 0 for d in self.domain_order}
-        per_domain_acq = {d: 0 for d in self.domain_order}
-        per_sub_total = {d: {} for d in self.domain_order}
-        per_sub_acq = {d: {} for d in self.domain_order}
-
-        # Totaux depuis le référentiel chargé
-        for d in self.domain_order:
-            submap = self.available.get(d, {})
-            for sd, lst in submap.items():
-                count = len(lst)
-                per_domain_total[d] += count
-                per_sub_total[d][sd] = per_sub_total[d].get(sd, 0) + count
-
-        # Acquis depuis la sélection
-        for it in self.selected_items:
-            d = it.domain
-            sd = it.subdomain or d
-            if d not in per_domain_acq:
-                # domaine ajouté dynamiquement non présent au moment du chargement ? on le crée
-                per_domain_total[d] = per_domain_total.get(d, 0)
-                per_domain_acq[d] = per_domain_acq.get(d, 0)
-                per_sub_total.setdefault(d, {})
-                per_sub_acq.setdefault(d, {})
-            per_domain_acq[d] = per_domain_acq.get(d, 0) + 1
-            per_sub_acq[d][sd] = per_sub_acq[d].get(sd, 0) + 1
-
-        # Pourcentages
-        per_domain = {}
-        for d in per_domain_total.keys():
-            tot = per_domain_total.get(d, 0)
-            acq = per_domain_acq.get(d, 0)
-            pct = (acq / tot) if tot > 0 else 0.0
-            per_domain[d] = {"total": tot, "acquired": acq, "pct": pct}
-
-        per_subdomain = {}
-        for d in per_sub_total.keys():
-            per_subdomain[d] = {}
-            for sd, tot in per_sub_total[d].items():
-                acq = per_sub_acq.get(d, {}).get(sd, 0)
-                pct = (acq / tot) if tot > 0 else 0.0
-                per_subdomain[d][sd] = {"total": tot, "acquired": acq, "pct": pct}
-
-        return {"per_domain": per_domain, "per_subdomain": per_subdomain}
-
-    def build_summary_slide(self, prs):
-        """
-        Crée une diapo finale avec:
-        - Un titre "Synthèse des acquisitions"
-        - Un graphique en barres des % par domaine
-        - Un bloc texte détaillant % par sous-domaine, auto-ajusté
-        """
-        stats = self.compute_stats()
-        per_domain = stats["per_domain"]
-        per_subdomain = stats["per_subdomain"]
-
+    def build_section_synthesis_slide(self, prs, key):
         slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
 
         sw = prs.slide_width
         sh = prs.slide_height
 
-        # Bandeau de titre
-        rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), sw, Inches(0.7))
+        # Titre "Synthèse" en taille 20, police unie (pas gras), fond rouge, texte noir, centré
+        band_h = Inches(0.8)
+        rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), sw, band_h)
         rect.fill.solid()
-        r, g, b = self.hex_to_rgb(COVER_HEADER_COLOR)
-        rect.fill.fore_color.rgb = RGBColor(r, g, b)
+        rect.fill.fore_color.rgb = RGBColor(255, 0, 0)  # rouge
         rect.line.fill.background()
 
-        tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.05), sw - Inches(0.8), Inches(0.6))
+        tb = slide.shapes.add_textbox(Inches(0), Inches(0), sw, band_h)
         tf = tb.text_frame
         tf.clear()
         p = tf.paragraphs[0]
-        p.text = "Synthèse des acquisitions"
-        p.font.size = Pt(22)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.text = "Synthèse"
+        p.font.size = Pt(20)
+        p.font.bold = False  # police unie (non gras)
+        p.font.color.rgb = RGBColor(0, 0, 0)  # texte noir
+        p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
 
-        # Graphique barres des domaines (valeurs en pourcentage)
-        cat_data = CategoryChartData()
-        cats = []
-        vals = []
-        for d in self.domain_order:
-            cats.append(d)
-            vals.append(per_domain.get(d, {"pct": 0.0})["pct"])  # décimal 0..1
-        # Si aucun domaine, rien à faire
-        if cats:
-            cat_data.categories = cats
-            cat_data.add_series("Acquis (%)", vals)
-
-            chart_left = Inches(0.6)
-            chart_top = Inches(0.9)
-            chart_width = sw - Inches(1.2)
-            chart_height = Inches(3.2)
-            chart_shape = slide.shapes.add_chart(
-                XL_CHART_TYPE.COLUMN_CLUSTERED, chart_left, chart_top, chart_width, chart_height, cat_data
-            )
-            chart = chart_shape.chart
-            # Axe valeurs en %
-            chart.value_axis.maximum_scale = 1.0
-            chart.value_axis.minimum_scale = 0.0
-            chart.value_axis.number_format = "0%"
-            # Libellés de données
-            plot = chart.plots[0]
-            plot.has_data_labels = True
-            dlabels = plot.data_labels
-            dlabels.number_format = "0%"
-            dlabels.show_value = True
-            dlabels.position = XL_LABEL_POSITION.OUTSIDE_END
-
-        # Détails par sous-domaine (texte auto-fit)
-        box_left = Inches(0.6)
-        box_top = Inches(4.3)
-        box_width = sw - Inches(1.2)
-        box_height = sh - box_top - Inches(0.6)
-
-        tb2 = slide.shapes.add_textbox(box_left, box_top, box_width, box_height)
+        # Sous-titre = intitulé de la SECTION (centré)
+        subtitle = SECTION_LABELS.get(key, key)
+        tb2 = slide.shapes.add_textbox(Inches(0.6), band_h + Inches(0.2), sw - Inches(1.2), Inches(0.6))
         tf2 = tb2.text_frame
         tf2.clear()
-        tf2.word_wrap = True
-        tf2.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+        p2 = tf2.paragraphs[0]
+        p2.text = subtitle
+        p2.font.size = Pt(18)
+        p2.font.bold = False
+        p2.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
 
-        if not self.domain_order:
-            p = tf2.paragraphs[0]
-            p.text = "Aucun domaine chargé."
-            p.font.size = Pt(14)
-            return
-
-        para_first = True
-        for d in self.domain_order:
-            # En-tête domaine
-            if para_first:
-                p = tf2.paragraphs[0]
-                para_first = False
-            else:
-                p = tf2.add_paragraph()
-            p.text = f"{d} — {int(round(per_domain.get(d, {'pct':0})['pct']*100))}% acquis " \
-                     f"({per_domain.get(d, {'acquired':0})['acquired']}/{per_domain.get(d, {'total':0})['total']})"
-            p.font.size = Pt(14)
-            p.font.bold = True
-            # Couleur domaine
-            r, g, b = self.hex_to_rgb(self.domain_states.get(d, DomainState(d, "#000000")).color)
-            p.font.color.rgb = RGBColor(r, g, b)
-
-            # Lignes sous-domaines
-            subs = per_subdomain.get(d, {})
-            for sd in subs.keys():
-                info = subs[sd]
-                sp = tf2.add_paragraph()
-                sp.level = 1
-                sp.text = f"{sd}: {int(round(info['pct']*100))}% ({info['acquired']}/{info['total']})"
-                sp.font.size = Pt(12)
+        # Zone de texte "Bilan :" (toujours dans la page)
+        tb3 = slide.shapes.add_textbox(Inches(0.6), band_h + Inches(1.2), sw - Inches(1.2), sh - (band_h + Inches(1.8)))
+        tf3 = tb3.text_frame
+        tf3.clear()
+        p3 = tf3.paragraphs[0]
+        p3.text = "Bilan :"
+        p3.font.size = Pt(14)
+        p3.font.bold = True
 
     # -------------------- Utils --------------------
 
