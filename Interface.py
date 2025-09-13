@@ -1075,102 +1075,141 @@ class CompetenceApp:
                     continue
                 ds = self.domain_states[d]
                 for pi, page in enumerate(pages):
-                    slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
-                    # Bandeau domaine
-                    self.add_domain_banner(slide, prs, d, ds.color)
+                    # Nous allons potentiellement créer plusieurs diapositives par page d'aperçu
+                    j = 0
+                    current_sd = None
+                    first_slide_for_page = True
+                    while j < len(page):
+                        slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
+                        # Bandeau domaine
+                        self.add_domain_banner(slide, prs, d, ds.color)
 
-                    # Zone de contenu (position de référence)
-                    left = Inches(0.6)
-                    top = Inches(1.2)
-                    width = prs.slide_width - Inches(1.2)
-                    height = prs.slide_height - Inches(1.7)
+                        # Zone de contenu (position de référence)
+                        left = Inches(0.6)
+                        top = Inches(1.2)
+                        width = prs.slide_width - Inches(1.2)
+                        height = prs.slide_height - Inches(1.7)
 
-                    # On va "composer" manuellement: bandeaux date + titres sd + listes à puces
-                    # en se basant sur l'estimation d'hauteur de l'aperçu (px) -> conversion en pouces
-                    preview_y_start = HEADER_HEIGHT + 14
-                    preview_y_bottom_margin = 20
-                    content_preview_height_px = max(1, PREVIEW_HEIGHT - preview_y_start - preview_y_bottom_margin)
+                        # Estimation basée sur l'aperçu pour maîtriser le débordement
+                        preview_y_start = HEADER_HEIGHT + 14
+                        preview_y_bottom_margin = 20
+                        content_preview_height_px = max(1, PREVIEW_HEIGHT - preview_y_start - preview_y_bottom_margin)
+                        y_px = preview_y_start
+                        max_y_px = preview_y_start + content_preview_height_px
 
-                    def ypx_to_in(y_px):
-                        return top + (y_px - preview_y_start) / content_preview_height_px * height
+                        body_font_size = ds.font_body[1]
+                        max_text_width_px = PREVIEW_WIDTH - 2 * TEXT_MARGIN_X - 10
+                        last_ts_slide = None
 
-                    # Paramètres d'estimation
-                    y_px = preview_y_start
-                    last_ts = None
-                    body_font_size = ds.font_body[1]
-                    max_text_width_px = PREVIEW_WIDTH - 2 * TEXT_MARGIN_X - 10
-
-                    # Dessiner au fil de page
-                    for is_header, sub, payload in page:
-                        if is_header:
-                            # Titre sous-domaine
-                            tb = slide.shapes.add_textbox(left, ypx_to_in(y_px), width, Inches(0.4))
-                            tf = tb.text_frame
-                            tf.clear()
-                            p = tf.paragraphs[0]
-                            p.text = sub
-                            p.font.size = Pt(DEFAULT_BODY_SIZE_PT + 1)
-                            p.font.bold = DEFAULT_SUBHEADER_BOLD
-                            p.font.underline = DEFAULT_SUBHEADER_UNDERLINE
-                            r, g, b = self.hex_to_rgb(self.domain_states[d].color)
-                            p.font.color.rgb = RGBColor(r, g, b)
-                            y_px += 22  # estimation même que l'aperçu
-                        else:
-                            # Bandeau date si changement de ts (mois+année)
-                            ts = (payload.ts or "").strip()
-                            if ts and ts != last_ts:
-                                band_h_px = 20
-                                # rectangle noir
-                                band_shape = slide.shapes.add_shape(
-                                    MSO_SHAPE.RECTANGLE,
-                                    left, ypx_to_in(y_px),
-                                    width, Inches(0.28)  # ~ 0.28" ≈ 20 px selon estimation
-                                )
-                                band_shape.fill.solid()
-                                band_shape.fill.fore_color.rgb = RGBColor(0, 0, 0)
-                                # enlever le contour
-                                try:
-                                    band_shape.line.fill.background()
-                                except Exception:
-                                    pass
-                                # texte centré dans le bandeau
-                                tb = slide.shapes.add_textbox(left, ypx_to_in(y_px), width, Inches(0.28))
+                        # Si on continue un sous-domaine sur une nouvelle diapo, réafficher son en-tête
+                        if current_sd:
+                            needed = 22
+                            if y_px + needed <= max_y_px:
+                                tb = slide.shapes.add_textbox(left, top + (y_px - preview_y_start) / content_preview_height_px * height, width, Inches(0.4))
                                 tf = tb.text_frame
                                 tf.clear()
                                 p = tf.paragraphs[0]
-                                p.text = ts
-                                p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
-                                p.font.size = Pt(10)   # taille 10 demandée
-                                p.font.bold = False
-                                p.font.color.rgb = RGBColor(255, 255, 255)  # lisible sur fond noir
-                                y_px += band_h_px
-                                last_ts = ts
+                                p.text = current_sd
+                                p.font.size = Pt(DEFAULT_BODY_SIZE_PT + 1)
+                                p.font.bold = DEFAULT_SUBHEADER_BOLD
+                                p.font.underline = DEFAULT_SUBHEADER_UNDERLINE
+                                r, g, b = self.hex_to_rgb(self.domain_states[d].color)
+                                p.font.color.rgb = RGBColor(r, g, b)
+                                y_px += 22
+                            else:
+                                # espace impossible, on passera à la diapo suivante directement
+                                pass
 
-                            # Ligne(s) de compétence, préfixée par le prénom
-                            prenom = (self.prenom_var.get() or "").strip()
-                            full_text = f"• {prenom} {payload.text}".strip()
-                            wrapped_lines = self.wrap_text(full_text, max_text_width_px, ("Arial", body_font_size))
-                            # Créer une zone pour le paragraphe (on laisse word_wrap)
-                            tb = slide.shapes.add_textbox(left + Inches(0.2), ypx_to_in(y_px), width - Inches(0.2), Inches(0.6))
-                            tf = tb.text_frame
-                            tf.clear()
-                            first_line = True
-                            for li, line in enumerate(wrapped_lines):
-                                p = tf.paragraphs[0] if first_line else tf.add_paragraph()
-                                p.text = line if li > 0 else line  # déjà "• " inséré
-                                p.font.size = Pt(body_font_size)
-                                p.font.bold = False
-                                p.font.color.rgb = RGBColor(0, 0, 0)
-                                if li == 0:
-                                    p.level = 0
-                                first_line = False
-                            # Estimation de la progression en px
-                            for _ in wrapped_lines:
-                                y_px += (body_font_size + LINE_SPACING)
-                            y_px += SUBHEADER_SPACING
+                        while j < len(page):
+                            is_header, sub, payload = page[j]
+                            if is_header:
+                                needed = 22
+                                if y_px + needed > max_y_px:
+                                    # Nouvelle diapo, on reprendra ce header
+                                    current_sd = sub
+                                    break
+                                # Titre sous-domaine
+                                tb = slide.shapes.add_textbox(left, top + (y_px - preview_y_start) / content_preview_height_px * height, width, Inches(0.4))
+                                tf = tb.text_frame
+                                tf.clear()
+                                p = tf.paragraphs[0]
+                                p.text = sub
+                                p.font.size = Pt(DEFAULT_BODY_SIZE_PT + 1)
+                                p.font.bold = DEFAULT_SUBHEADER_BOLD
+                                p.font.underline = DEFAULT_SUBHEADER_UNDERLINE
+                                r, g, b = self.hex_to_rgb(self.domain_states[d].color)
+                                p.font.color.rgb = RGBColor(r, g, b)
+                                y_px += 22
+                                current_sd = sub
+                                j += 1
+                            else:
+                                # Calcul de la hauteur nécessaire
+                                ts = (payload.ts or "").strip()
+                                prenom = (self.prenom_var.get() or "").strip()
+                                full_text = f"• {prenom} {payload.text}".strip()
+                                wrapped_lines = self.wrap_text(full_text, max_text_width_px, ("Arial", body_font_size))
+                                lines_h_px = len(wrapped_lines) * (body_font_size + LINE_SPACING)
+                                banner_h_px = 20 if (ts and ts != last_ts_slide) else 0
+                                needed = banner_h_px + lines_h_px + SUBHEADER_SPACING
 
-                    # Exporter images de la page courante
-                    self.export_page_images(slide, prs, d, pi)
+                                if y_px + needed > max_y_px:
+                                    # Nouvelle diapo pour ce même élément (et on réaffichera le header courant)
+                                    # On ne consomme rien ici, on passe à la diapo suivante
+                                    break
+
+                                # Bandeau date si nécessaire
+                                if banner_h_px:
+                                    band_shape = slide.shapes.add_shape(
+                                        MSO_SHAPE.RECTANGLE,
+                                        left,
+                                        top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                        width, Inches(0.28)
+                                    )
+                                    band_shape.fill.solid()
+                                    band_shape.fill.fore_color.rgb = RGBColor(0, 0, 0)
+                                    try:
+                                        band_shape.line.fill.background()
+                                    except Exception:
+                                        pass
+                                    tb = slide.shapes.add_textbox(left,
+                                        top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                        width, Inches(0.28))
+                                    tf = tb.text_frame
+                                    tf.clear()
+                                    p = tf.paragraphs[0]
+                                    p.text = ts
+                                    p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                                    p.font.size = Pt(10)
+                                    p.font.bold = False
+                                    p.font.color.rgb = RGBColor(255, 255, 255)
+                                    y_px += banner_h_px
+                                    last_ts_slide = ts
+
+                                # Texte de la compétence
+                                bullet_h = max(Inches(0.3), (lines_h_px / content_preview_height_px) * height)
+                                tb = slide.shapes.add_textbox(left + Inches(0.2),
+                                    top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                    width - Inches(0.2), bullet_h)
+                                tf = tb.text_frame
+                                tf.clear()
+                                first_line = True
+                                for li, line in enumerate(wrapped_lines):
+                                    p = tf.paragraphs[0] if first_line else tf.add_paragraph()
+                                    p.text = line
+                                    p.font.size = Pt(body_font_size)
+                                    p.font.bold = False
+                                    p.font.color.rgb = RGBColor(0, 0, 0)
+                                    if li == 0:
+                                        p.level = 0
+                                    first_line = False
+                                y_px += lines_h_px
+                                y_px += SUBHEADER_SPACING
+                                j += 1
+
+                        # Exporter images de la première diapo de cette page d'aperçu uniquement
+                        if first_slide_for_page:
+                            self.export_page_images(slide, prs, d, pi)
+                            first_slide_for_page = False
 
             # IMPORTANT: on ne crée PLUS la page finale avec graphique/pourcentages
 
@@ -1277,7 +1316,7 @@ class CompetenceApp:
             p = tf.paragraphs[0]
             p.text = section_title
             p.font.bold = True
-            p.font.size = Pt(13)
+            p.font.size = Pt(12)
 
             for fname, flabel in SECTION_FIELDS.items():
                 val = fields.get(fname, "").strip()
@@ -1286,7 +1325,7 @@ class CompetenceApp:
                 sp = tf.add_paragraph()
                 sp.text = f"{flabel}: {val}"
                 sp.level = 1
-                sp.font.size = Pt(11)
+                sp.font.size = Pt(10)
 
             # Emplacement photo sous le bloc texte
             ph_top = row_top + col_text_h + Inches(0.05)
