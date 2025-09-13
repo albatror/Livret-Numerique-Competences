@@ -1,156 +1,156 @@
-##-Domaine 1 MOBILISER LE LANGAGE DANS TOUTES SES DIMENSIONS		
-#-L’ORAL		
-XX écoute les autres		
-XX parle en petit groupe		
-XX parle devant la classe entière		
-XX utilise le je pour parler d‘il/elle		
-XX utilise les pronoms (tu, elle, nous….)		
-XX participe aux échanges de façon constructive		
-XX utilise il et elle quand il/elle parle des autres		
-XX explique ce qu’il/elle fait		
-XX sait décrire un objet, un animal,….		
-XX raconte un événement vécu		
-XX sait relever les points communsdifférences		
-XX sait faire des catégories (animaux,instruments de musique,fruits....)		
-XX communique en faisant des gestes		
-XX produit des mots phrases « ex  ‘pipi’ pour vouloir  aller aux toilettes »		
-XX utilise 2 mots pour se faire comprendre		
-XX utilise une phrase simple pour se faire comprendre « ex  je mange » .		
-XX produit une phrase complexe pour se faire comprendre «  ex  je veux aller aux toilettes».		
-XX produit une phrase complexe pour se faire comprendre avec des adjectifs, des connecteurs logiques.		
-XX communique avec les adultes		
-XX réutilise des mots appris en classe (vocabulaire)		
-XX attend son tour de parole		
-XX sait repérer les syllabes d’un mot		
-XX sait repérer une syllabe commune à plusieurs mots		
-XX trouve des mots qui riment		
-XX sait jouer avec les syllabes (inverser, retirer, …)		
-XX connaît le son que produit une lettre (phonème)		
-XX sait localiser la place d’un phonème		
+##-Domaine MOBILISER LE LANGAGE DANS TOUTES SES DIMENSIONS
+#-L’ORAL
+XX écoute les autres
+XX parle en petit groupe
+XX parle devant la classe entière
+XX utilise le « je » pour parler d’il/elle
+XX utilise les pronoms (tu, elle, nous…)
+XX participe aux échanges de façon constructive
+XX utilise « il » et « elle » quand il/elle parle des autres
+XX explique ce qu’il/elle fait
+XX sait décrire un objet, un animal…
+XX raconte un événement vécu
+XX sait relever les points communs/différences
+XX sait faire des catégories (animaux, instruments de musique, fruits…)
+XX communique en faisant des gestes
+XX produit des mots/phrases « ex. ‘pipi’ pour vouloir aller aux toilettes »
+XX utilise 2 mots pour se faire comprendre
+XX utilise une phrase simple pour se faire comprendre « ex. je mange »
+XX produit une phrase complexe pour se faire comprendre « ex. je veux aller aux toilettes »
+XX produit une phrase complexe pour se faire comprendre avec des adjectifs, des connecteurs logiques
+XX communique avec les adultes
+XX réutilise des mots appris en classe (vocabulaire)
+XX attend son tour de parole
+XX sait repérer les syllabes d’un mot
+XX sait repérer une syllabe commune à plusieurs mots
+XX trouve des mots qui riment
+XX sait jouer avec les syllabes (inverser, retirer…)
+XX connaît le son que produit une lettre (phonème)
+XX sait localiser la place d’un phonème
 
-##-Domaine 1 MOBILISER LE LANGAGE DANS TOUTES SES DIMENSIONS		
-#-L’ECRIT		
-XX laisse des traces avec les mains ou les doigts		
-XX apprend à décoller, coller des gommettes		
-XX fait des colombins avec la pâte à modeler		
-XX enfile des perles		
-XX manipule des objets de construction		
-XX associer des personnages à un album		
-XX sait manipuler un livre correctement		
-XX anticipe le déroulement d’une histoire		
-XX écoute une histoire avec intérêt		
-XX identifier les éléments de l’histoire  personnages,actions,lieux		
-XX ordonne les images en respectant la chronologie de l’histoire		
-XX identifier les émotions		
-XX raconte une histoire en respectant la chronologie et les liens logiques		
-XX reconnaît différents types d’écrits (recettes, livres, affiches, manuel..)		
-XX est capable de proposer une phrase à écrire		
-XX sait faire la différence entre mots, lettres, chiffres		
-XX identifie des mots en Se fiant aux lettres et à leur ordre		
-XX commence à utiliser un clavier		
-XX Je connais et nomme la majorité des lettres capitales		
-XX connais et nomme la majorité des lettres minuscules scripts		
-XX connais et nomme la majorité des lettres cursives		
-XX fait correspondre lettres majuscules et lettres scripts		
-XX tiens correctement les outils scripteurs		
-XX reconnaît l’initiale de son prénom		
-XX nomme les lettres de son prénom		
-XX sait écrire son prénom en capitales		
-XX écrit son prénom en lettres cursives avecsans modèle		
-XX trace des lettres en cursives		
-XX sait enchaîner plusieurs lettres en cursives		
-XX colorie sans dépasser		
-XX ecrit seul un mot en utilisant des lettres ou des groupes de lettres empruntés aux mots connus		
-			
-##-Domaine 2 CONSTRUIRE LES PREMIERS OUTILS POUR STRUCTURER SA PENSEE		
-#-LES NOMBRES				
-XX construit ou dénombre une collection jusqu'à 3		
-XX construit ou dénombre une collection jusqu'à 6		
-XX construit ou dénombre une collection jusqu'à 10		
-XX construit une collection équivalente à une autre.		 
-XX construit ou dénombre une collection supérieure à 10		 
-XX compare deux collections d'objets.		
-XX ajoute ou enlève pour aller jusqu'à 6.		
-XX reconnaît les constellations du dé		
-XX montre une quantité avec les doigts		
-XX dit la suite des nombres jusqu'à…		
-XX sait lire des nombres		
-XX estime des quantités		
-XX décompose un nombre (ex 5 c’est 3 et encore 2 )		
-XX sait trier des objets selon un critère		
-XX sait classer des objets selon un critère		
-		
-#-LES FORMES, LES GRANDEURS, LES SUITES ORGANISEES		
-XX nomme quelques formes planes		
-XX nomme quelques solides		
-XX dessine quelques formes géométriques		
-XX ordonne des objets selon un critère (taille, masse)		
-XX décompose un nombre (ex 5 c’est 3 et encore 2 )		
-XX continue ou complète un algorithme		
-XX fait un puzzle à  encastrements		
-XX fait un puzzle à …… pièces		 		
-		
-##-Domaine 3  EXPLORER LE MONDE		
-#-SE REPERER DANS LE TEMPS		
-XX se repère dans la matinée		
-XX se repère dans la journée		
-XX se repère dans la semaine		
-XX se repère dans le mois (utilisation d’un calendrier)		
-XX utilise les mots hier, aujourd'hui, demain,avant, après ...		
-		
-#-SE REPERER DANS L'ESPACE		
-XX se repère dans la classe		
-XX se repère dans l’école		
-XX utilise le vocabulaire spatial sur, sous, dedans….		
-XX se repère sur un quadrillage.				
-		
-#-EXPLORER LE MONDE DU VIVANT, DES OBJETS ET DE LA MATIERE		
-XX désigne et/ou nomme les parties du corps		
-XX sait dessiner un bonhomme têtard		
-XX sait dessiner un bonhomme fil de fer		
-XX sait dessiner un bonhomme complet		
-XX connaît des caractéristiques des animaux		
-XX connaît des caractéristiques des végétaux		
-XX applique les règles d’hygiène élémentaires		
-XX connaît quelques familles d’aliments		
-XX sait tenir des ciseaux		
-XX sait découper une ligne		
-XX sait découper une forme		
-XX sait coller		
-XX utilise une fiche technique		
-XX réalise des constructions avec modèle		
-XX connaît des propriétés de la matière		
-XX agit sur la matière		
-XX sait représenter une idée par un schéma		
-XX sait enfiler son manteau tout seul		
-XX sait fermer son manteau tout seul		
-XX sait utiliser des objets numériques		
-XX sait utiliser un clavier pour écrire des mots		
-XX connaît quelques couleurs		
-		
-##-Domaine 4 AGIR, S’EXPRIMER, COMPRENDRE A TRAVERS L’ACTIVITE PHYSIQUE		
-XX s’engage dans l’activité		
-XX explore les possibilités du matériel		
-XX sait lancer ….		
-XX sait sauter …		
-XX sait courir ….		
-XX cherche à s’améliorer		
-XX enchaîne des actions sur un parcours		
-XX prend des risques mesurés		
-XX invente, reproduit, apprend une suite de mouvements		
-XX joue à un jeu collectif en respectant les règles		
-XX sait coopérer et s’opposer		
-			
-##-Domaine 5 AGIR, S’EXPRIMER, COMPRENDRE A TRAVERS L’ACTIVITE ARTISTIQUE		
-#-LES PRODUCTIONS PLASTIQUES ET VISUELLES		
-XX laisse des traces avec différents outils		
-XX produis des tracés de plus en plus précis		
-XX reproduis des motifs graphiques		
-XX réalise une composition en plan ou en volume.		
-XX dessine avec une intention		
-		
-##-Domaine 6 UNIVERS SONORES		
-XX chante		
-XX mémorise des gestes de comptines et de jeux de doigts		
-XX mémorise des paroles de chansons		
-XX explore des objets sonores		
+##-Domaine MOBILISER LE LANGAGE DANS TOUTES SES DIMENSIONS
+#-L’ÉCRIT
+XX laisse des traces avec les mains ou les doigts
+XX apprend à décoller, coller des gommettes
+XX fait des colombins avec la pâte à modeler
+XX enfile des perles
+XX manipule des objets de construction
+XX associe des personnages à un album
+XX sait manipuler un livre correctement
+XX anticipe le déroulement d’une histoire
+XX écoute une histoire avec intérêt
+XX identifie les éléments de l’histoire : personnages, actions, lieux
+XX ordonne les images en respectant la chronologie de l’histoire
+XX identifie les émotions
+XX raconte une histoire en respectant la chronologie et les liens logiques
+XX reconnaît différents types d’écrits (recettes, livres, affiches, manuels…)
+XX est capable de proposer une phrase à écrire
+XX sait faire la différence entre mots, lettres, chiffres
+XX identifie des mots en se fiant aux lettres et à leur ordre
+XX commence à utiliser un clavier
+XX connaît et nomme la majorité des lettres capitales
+XX connaît et nomme la majorité des lettres minuscules script
+XX connaît et nomme la majorité des lettres cursives
+XX fait correspondre lettres majuscules et lettres script
+XX tient correctement les outils scripteurs
+XX reconnaît l’initiale de son prénom
+XX nomme les lettres de son prénom
+XX sait écrire son prénom en capitales
+XX écrit son prénom en lettres cursives avec/sans modèle
+XX trace des lettres en cursives
+XX sait enchaîner plusieurs lettres en cursives
+XX colorie sans dépasser
+XX écrit seul un mot en utilisant des lettres ou des groupes de lettres empruntés aux mots connus
+
+##-Domaine CONSTRUIRE LES PREMIERS OUTILS POUR STRUCTURER SA PENSÉE
+#-LES NOMBRES
+XX construit ou dénombre une collection jusqu’à 3
+XX construit ou dénombre une collection jusqu’à 6
+XX construit ou dénombre une collection jusqu’à 10
+XX construit une collection équivalente à une autre
+XX construit ou dénombre une collection supérieure à 10
+XX compare deux collections d’objets
+XX ajoute ou enlève pour aller jusqu’à 6
+XX reconnaît les constellations du dé
+XX montre une quantité avec les doigts
+XX dit la suite des nombres jusqu’à…
+XX sait lire des nombres
+XX estime des quantités
+XX décompose un nombre (ex. 5 c’est 3 et encore 2)
+XX sait trier des objets selon un critère
+XX sait classer des objets selon un critère
+
+#-LES FORMES, LES GRANDEURS, LES SUITES ORGANISÉES
+XX nomme quelques formes planes
+XX nomme quelques solides
+XX dessine quelques formes géométriques
+XX ordonne des objets selon un critère (taille, masse)
+XX décompose un nombre (ex. 5 c’est 3 et encore 2)
+XX continue ou complète un algorithme
+XX fait un puzzle à encastrements
+XX fait un puzzle à … pièces
+
+##-Domaine EXPLORER LE MONDE
+#-SE REPÉRER DANS LE TEMPS
+XX se repère dans la matinée
+XX se repère dans la journée
+XX se repère dans la semaine
+XX se repère dans le mois (utilisation d’un calendrier)
+XX utilise les mots hier, aujourd’hui, demain, avant, après…
+
+#-SE REPÉRER DANS L’ESPACE
+XX se repère dans la classe
+XX se repère dans l’école
+XX utilise le vocabulaire spatial sur, sous, dedans…
+XX se repère sur un quadrillage
+
+#-EXPLORER LE MONDE DU VIVANT, DES OBJETS ET DE LA MATIÈRE
+XX désigne et/ou nomme les parties du corps
+XX sait dessiner un bonhomme « têtard »
+XX sait dessiner un bonhomme « fil de fer »
+XX sait dessiner un bonhomme complet
+XX connaît des caractéristiques des animaux
+XX connaît des caractéristiques des végétaux
+XX applique les règles d’hygiène élémentaires
+XX connaît quelques familles d’aliments
+XX sait tenir des ciseaux
+XX sait découper une ligne
+XX sait découper une forme
+XX sait coller
+XX utilise une fiche technique
+XX réalise des constructions avec modèle
+XX connaît des propriétés de la matière
+XX agit sur la matière
+XX sait représenter une idée par un schéma
+XX sait enfiler son manteau tout seul
+XX sait fermer son manteau tout seul
+XX sait utiliser des objets numériques
+XX sait utiliser un clavier pour écrire des mots
+XX connaît quelques couleurs
+
+##-Domaine AGIR, S’EXPRIMER, COMPRENDRE À TRAVERS L’ACTIVITÉ PHYSIQUE
+XX s’engage dans l’activité
+XX explore les possibilités du matériel
+XX sait lancer …
+XX sait sauter …
+XX sait courir …
+XX cherche à s’améliorer
+XX enchaîne des actions sur un parcours
+XX prend des risques mesurés
+XX invente, reproduit, apprend une suite de mouvements
+XX joue à un jeu collectif en respectant les règles
+XX sait coopérer et s’opposer
+
+##-Domaine AGIR, S’EXPRIMER, COMPRENDRE À TRAVERS L’ACTIVITÉ ARTISTIQUE
+#-LES PRODUCTIONS PLASTIQUES ET VISUELLES
+XX laisse des traces avec différents outils
+XX produit des tracés de plus en plus précis
+XX reproduit des motifs graphiques
+XX réalise une composition en plan ou en volume
+XX dessine avec une intention
+
+##-Domaine UNIVERS SONORES
+XX chante
+XX mémorise des gestes de comptines et de jeux de doigts
+XX mémorise des paroles de chansons
+XX explore des objets sonores
