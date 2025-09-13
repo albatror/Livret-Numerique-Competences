@@ -5,7 +5,7 @@ from PIL import Image, ImageTk
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT, MSO_AUTO_SIZE
+from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.dml import MSO_THEME_COLOR
 import json
@@ -15,15 +15,15 @@ from collections import OrderedDict
 # ==== Configuration ====
 
 APP_TITLE = "Compétences Pro Ultimate"
-MAX_LINES_PER_SLIDE = 20   # lignes (en-têtes + compétences) par diapositive (utilisé pour l'aperçu)
-LEFT_PANEL_WIDTH = 420    # largeur colonne "Compétences disponibles"
-COMP_LISTBOX_WIDTH = 62   # largeur listbox (caractères)
-PREVIEW_WIDTH = 900
+MAX_LINES_PER_SLIDE = 20     # lignes (en-têtes + compétences) par diapositive (utilisé pour l'aperçu)
+LEFT_PANEL_MINW = 300        # min largeur colonne gauche
+COMP_LISTBOX_WIDTH = 62      # largeur listbox (caractères)
+PREVIEW_WIDTH = 900          # valeurs initiales (taille réelle prise au runtime)
 PREVIEW_HEIGHT = 520
-HEADER_HEIGHT = 48    # hauteur bandeau domaine dans l'aperçu
-SUBHEADER_SPACING = 8    # espacement après un sous-domaine (aperçu)
-LINE_SPACING = 6    # espacement entre lignes de compétences (aperçu)
-COVER_HEADER_HEIGHT = 64   # bandeau gris couverture (mini-apercu)
+HEADER_HEIGHT = 48
+SUBHEADER_SPACING = 8
+LINE_SPACING = 6
+COVER_HEADER_HEIGHT = 64
 TEXT_MARGIN_X = 24
 TEXT_MARGIN_Y = 18
 DEFAULT_BODY_FONT = ("Arial", 12)
@@ -32,8 +32,8 @@ DEFAULT_BODY_SIZE_PT = 12
 DEFAULT_SUBHEADER_BOLD = True
 DEFAULT_SUBHEADER_UNDERLINE = True
 DEFAULT_TITLE_FG = "white"
-COVER_HEADER_COLOR = "#6e6e6e"  # gris bandeau couverture
-COVER_PERSONAL_BG_PREVIEW = "#6B8E23"  # olive drab approx pour l'aperçu
+COVER_HEADER_COLOR = "#6e6e6e"       # gris bandeau couverture
+COVER_PERSONAL_BG_PREVIEW = "#6B8E23"
 
 # Palette de couleurs pour domaines (assignation automatique)
 DOMAIN_COLORS = [
@@ -56,6 +56,7 @@ SECTION_FIELDS = OrderedDict([
     ("enseignants", "Enseignant(s)"),
 ])
 
+
 # ==== Structures de données ====
 
 class DomainState:
@@ -75,7 +76,7 @@ class CompetenceItem:
         self.batch_id = batch_id  # entier, incrémenté à chaque clic "Ajouter ->"
 
     def key(self):
-        # On garde la clé d'unicité (pas de doublon exact domaine/sous-domaine/texte)
+        # clé d'unicité
         return (self.domain, self.subdomain or "", self.text)
 
 
@@ -87,36 +88,35 @@ class CompetenceApp:
         self.root.title(APP_TITLE)
 
         # Etat
-        self.available = OrderedDict()  # domain -> OrderedDict{subdomain -> [competences]}
+        self.available = OrderedDict()        # domain -> OrderedDict{subdomain -> [competences]}
         self.domain_order = []
-        self.domain_states = {}    # domain -> DomainState
-        self.selected_items = []    # list[CompetenceItem]
-        self.added_set = set()    # keys pour anti-doublon
-        self.add_batch_counter = 0    # incrémenté à chaque ajout
+        self.domain_states = {}               # domain -> DomainState
+        self.selected_items = []              # list[CompetenceItem]
+        self.added_set = set()                # keys pour anti-doublon
+        self.add_batch_counter = 0
 
-        # Aperçu global (toutes pages de tous domaines)
-        self.domain_page_map = {}    # domain -> list[page] ; page = list[(is_header, subdomain, item|None)]
-        self.item_page_index = {}    # item.key() -> (domain, page_index)
-        self.flat_pages = []    # list of (domain, page_index) pour navigation globale
-        self.current_flat_index = 0    # index dans flat_pages
-        self.current_domain = None    # domaine actif (déduit de flat_pages)
+        # Aperçu global
+        self.domain_page_map = {}             # domain -> list[page]
+        self.item_page_index = {}             # item.key() -> (domain, page_index)
+        self.flat_pages = []                  # list of (domain, page_index)
+        self.current_flat_index = 0
+        self.current_domain = None
 
-        # Images par page (clé = (domain, page_index) -> list d'images)
-        # image dict: {path, pil, tk, pos[x,y], size[w,h]}
-        self.page_images = {}
+        # Images par page
+        self.page_images = {}                 # (domain, page_index) -> [img dict]
 
-        # Infos couverture (uniquement personnelles)
+        # Infos couverture
         self.nom_var = tk.StringVar()
         self.prenom_var = tk.StringVar()
         self.naissance_var = tk.StringVar()
         self.photo_path = None
         self.personal_completed = False
 
-        # Horodateur (obligatoire pour ajouter des compétences)
+        # Horodateur (obligatoire)
         self.month_var = tk.StringVar()
         self.year_var = tk.StringVar()
 
-        # Sections: données et widgets (3 champs + photo par section + bilans)
+        # Sections (TPS/PS/MS/GS)
         self.sections_data = {
             key: {
                 "completed": False,
@@ -127,15 +127,13 @@ class CompetenceApp:
                 "bilan2_enabled": False,
             } for key in SECTION_KEYS
         }
-        # key -> { 'entries': {fname:(Entry,Var)}, 'completed_var': tk.BooleanVar, 'photo_label': Label,
-        #    'bilan2_var': tk.BooleanVar, 'bilan2_btn': ttk.Button }
         self.sections_widgets = {}
 
-        # Descriptions domaines/sous-domaines (depuis DOMAINES.txt)
-        self.domain_descriptions = {}    # domain -> str
-        self.subdomain_descriptions = {}    # (domain, subdomain) -> str
+        # Descriptions domaines/sous-domaines (DOMAINES.txt)
+        self.domain_descriptions = {}     # domain -> str
+        self.subdomain_descriptions = {}  # (domain, subdomain) -> str
 
-        # Pour mesure du texte (aperçu et estimation pour PPT)
+        # Pour mesure du texte
         self.measure_font = tkfont.Font(family="Arial", size=12)
 
         # Drag/Resize images (aperçu)
@@ -151,109 +149,136 @@ class CompetenceApp:
 
     def _build_ui(self):
         self.root.geometry("1600x1000")
+        self.root.minsize(1200, 800)
 
         # Ligne haute: informations personnelles + Sections onglets
         top = ttk.Frame(self.root)
         top.pack(fill="x", padx=8, pady=6)
 
-        # Section: Informations personnelles + Horodatage obligatoire
+        # Informations personnelles + Horodatage
         pers = ttk.LabelFrame(top, text="Informations personnelles & Horodatage (obligatoire)")
         pers.pack(side="left", padx=6, pady=4, fill="x", expand=True)
 
         ttk.Label(pers, text="Nom:").grid(row=0, column=0, sticky="w")
-        ttk.Entry(pers, textvariable=self.nom_var, width=18).grid(row=0, column=1, sticky="w", padx=4)
+        ttk.Entry(pers, textvariable=self.nom_var, width=18).grid(row=0, column=1, sticky="we", padx=4)
 
         ttk.Label(pers, text="Prénom:").grid(row=0, column=2, sticky="w")
-        ttk.Entry(pers, textvariable=self.prenom_var, width=18).grid(row=0, column=3, sticky="w", padx=4)
+        ttk.Entry(pers, textvariable=self.prenom_var, width=18).grid(row=0, column=3, sticky="we", padx=4)
 
         ttk.Label(pers, text="Date de naissance:").grid(row=0, column=4, sticky="w")
-        ttk.Entry(pers, textvariable=self.naissance_var, width=16).grid(row=0, column=5, sticky="w", padx=4)
+        ttk.Entry(pers, textvariable=self.naissance_var, width=16).grid(row=0, column=5, sticky="we", padx=4)
 
         ttk.Button(pers, text="Importer photo", command=self._import_photo).grid(row=0, column=6, padx=6)
         ttk.Button(pers, text="Marquer comme complétée", command=self._mark_personal_completed).grid(row=0, column=7, padx=6)
 
-        # Ligne des champs horodatage (obligatoires)
+        # Horodatage
         ttk.Label(pers, text="Mois (ex: Février):").grid(row=1, column=0, sticky="w", pady=(6, 0))
-        ttk.Entry(pers, textvariable=self.month_var, width=14).grid(row=1, column=1, sticky="w", padx=4, pady=(6, 0))
+        ttk.Entry(pers, textvariable=self.month_var, width=14).grid(row=1, column=1, sticky="we", padx=4, pady=(6, 0))
         ttk.Label(pers, text="Année (ex: 2023):").grid(row=1, column=2, sticky="w", pady=(6, 0))
-        ttk.Entry(pers, textvariable=self.year_var, width=10).grid(row=1, column=3, sticky="w", padx=4, pady=(6, 0))
+        ttk.Entry(pers, textvariable=self.year_var, width=10).grid(row=1, column=3, sticky="we", padx=4, pady=(6, 0))
 
-        # Bloc Sections (TPS/PS/MS/GS) via Notebook
+        for col in range(8):
+            pers.grid_columnconfigure(col, weight=1)
+
+        # Bloc Sections (TPS/PS/MS/GS)
         sections_block = ttk.LabelFrame(self.root, text="Sections de cycle (mémorisées indépendamment)")
         sections_block.pack(fill="x", padx=8, pady=4)
 
         self.sections_nb = ttk.Notebook(sections_block)
         self.sections_nb.pack(fill="x", padx=6, pady=6)
-
         for key in SECTION_KEYS:
             self._build_section_tab(key)
 
-        # Zone principale
+        # Zone principale: 3 colonnes proportionnelles
         main = ttk.Frame(self.root)
-        main.pack(fill="both", expand=True, padx=8, pady=6)
+        main.pack(fill="both", expand=True, padx=8, pady=(4, 0))
 
-        # Gauche: Disponibles (arbre + liste)
-        left = ttk.LabelFrame(main, text="Compétences disponibles")
-        left.pack(side="left", fill="y", padx=6, pady=4)
+        cols = ttk.Panedwindow(main, orient=tk.HORIZONTAL)
+        cols.pack(fill="both", expand=True)
 
-        left_tree_frame = ttk.Frame(left)
-        left_tree_frame.pack(side="left", fill="y", padx=4, pady=4)
-        self.tree = ttk.Treeview(left_tree_frame, show="tree", height=22)
-        self.tree.pack(side="left", fill="y")
-        self.tree.column("#0", width=LEFT_PANEL_WIDTH, minwidth=300, stretch=True)
+        # 1) Colonne gauche: Disponibles
+        col_left = ttk.LabelFrame(cols, text="Compétences disponibles")
+        cols.add(col_left, weight=1)
+
+        left_tree_frame = ttk.Frame(col_left)
+        left_tree_frame.pack(fill="both", expand=True, padx=6, pady=6)
+
+        self.tree = ttk.Treeview(left_tree_frame, show="tree")
+        self.tree.pack(side="left", fill="both", expand=True)
+        self.tree.column("#0", width=420, minwidth=LEFT_PANEL_MINW, stretch=True)
+
         yscroll_tree = ttk.Scrollbar(left_tree_frame, orient="vertical", command=self.tree.yview)
         yscroll_tree.pack(side="left", fill="y")
         self.tree.configure(yscrollcommand=yscroll_tree.set)
 
-        mid_left = ttk.Frame(left)
-        mid_left.pack(side="left", fill="both", padx=8, pady=4)
-        ttk.Label(mid_left, text="Compétences du sous-domaine").pack(anchor="w")
-        self.comps_list = tk.Listbox(mid_left, width=COMP_LISTBOX_WIDTH, height=20, selectmode=tk.EXTENDED)
-        self.comps_list.pack(fill="both", expand=True)
-        yscroll_comp = ttk.Scrollbar(mid_left, orient="vertical", command=self.comps_list.yview)
-        yscroll_comp.pack(side="right", fill="y")
+        # 2) Colonne milieu: Compétences du sous-domaine
+        col_mid = ttk.LabelFrame(cols, text="Compétences du sous-domaine")
+        cols.add(col_mid, weight=1)
+
+        mid_inner = ttk.Frame(col_mid)
+        mid_inner.pack(fill="both", expand=True, padx=6, pady=6)
+
+        self.comps_list = tk.Listbox(mid_inner, width=COMP_LISTBOX_WIDTH, selectmode=tk.EXTENDED)
+        self.comps_list.pack(side="left", fill="both", expand=True)
+
+        yscroll_comp = ttk.Scrollbar(mid_inner, orient="vertical", command=self.comps_list.yview)
+        yscroll_comp.pack(side="left", fill="y")
         self.comps_list.configure(yscrollcommand=yscroll_comp.set)
 
-        btns_left = ttk.Frame(mid_left)
-        btns_left.pack(fill="x", pady=6)
+        # Boutons bas de colonne milieu
+        btns_left = ttk.Frame(col_mid)
+        btns_left.pack(fill="x", padx=6, pady=(0, 8))
         ttk.Button(btns_left, text="Charger COMPETENCES.txt", command=self.load_competences_file).pack(side="left", padx=2)
         ttk.Button(btns_left, text="Ajouter ->", command=self.add_selected_competences).pack(side="left", padx=2)
 
-        # Centre: Sélectionnées
-        center = ttk.LabelFrame(main, text="Sélectionnées (dans le PPT)")
-        center.pack(side="left", fill="y", padx=6, pady=4)
+        # 3) Colonne droite: Sélectionnées (PPT)
+        col_right = ttk.LabelFrame(cols, text="Sélectionnées (dans le PPT)")
+        cols.add(col_right, weight=1)
 
-        self.selected_tree = ttk.Treeview(center, columns=("subdomain", "text"), show="headings", height=22)
+        sel_area = ttk.Frame(col_right)
+        sel_area.pack(fill="both", expand=True, padx=6, pady=6)
+
+        self.selected_tree = ttk.Treeview(sel_area, columns=("subdomain", "text"), show="headings")
         self.selected_tree.heading("subdomain", text="Sous-domaine")
         self.selected_tree.heading("text", text="Compétence")
         self.selected_tree.column("subdomain", width=200, stretch=True)
         self.selected_tree.column("text", width=460, stretch=True)
-        self.selected_tree.pack(side="left", fill="both", expand=True, padx=4, pady=4)
+        self.selected_tree.pack(side="left", fill="both", expand=True)
 
-        yscroll_sel = ttk.Scrollbar(center, orient="vertical", command=self.selected_tree.yview)
+        yscroll_sel = ttk.Scrollbar(sel_area, orient="vertical", command=self.selected_tree.yview)
         yscroll_sel.pack(side="left", fill="y")
         self.selected_tree.configure(yscrollcommand=yscroll_sel.set)
 
-        btns_center = ttk.Frame(center)
-        btns_center.pack(side="left", fill="y", padx=6)
-        ttk.Button(btns_center, text="Retirer <-", command=self.remove_selected_from_ppt).pack(pady=4, fill="x")
-        ttk.Button(btns_center, text="Aller à la page", command=self.goto_selected_page).pack(pady=4, fill="x")
-        ttk.Button(btns_center, text="Ajouter image (page)", command=self.add_image_page).pack(pady=12, fill="x")
-        ttk.Button(btns_center, text="Police/Couleur (domaine)", command=self.change_font_color).pack(pady=4, fill="x")
-        ttk.Button(btns_center, text="Sauvegarder projet", command=self.save_project).pack(pady=12, fill="x")
-        ttk.Button(btns_center, text="Charger projet", command=self.load_project).pack(pady=4, fill="x")
-        ttk.Button(btns_center, text="Exporter PowerPoint", command=self.export_ppt).pack(pady=16, fill="x")
+        # Barre de boutons en bas de la colonne droite (visibles et regroupés sous la liste)
+        btns_center = ttk.Frame(col_right)
+        btns_center.pack(fill="x", padx=6, pady=(0, 8))
+        # Rangée 1
+        row1 = ttk.Frame(btns_center)
+        row1.pack(fill="x", pady=2)
+        ttk.Button(row1, text="Retirer <-", command=self.remove_selected_from_ppt).pack(side="left", padx=2)
+        ttk.Button(row1, text="Aller à la page", command=self.goto_selected_page).pack(side="left", padx=2)
+        ttk.Button(row1, text="Exporter PowerPoint", command=self.export_ppt).pack(side="right", padx=2)
 
-        # Droite: Mini couverture + Pagination globale + Aperçu
-        right = ttk.Frame(main)
-        right.pack(side="left", fill="both", expand=True, padx=6, pady=4)
+        # Rangée 2 (autres actions)
+        row2 = ttk.Frame(btns_center)
+        row2.pack(fill="x", pady=2)
+        ttk.Button(row2, text="Ajouter image (page)", command=self.add_image_page).pack(side="left", padx=2)
+        ttk.Button(row2, text="Police/Couleur (domaine)", command=self.change_font_color).pack(side="left", padx=2)
+        ttk.Button(row2, text="Sauvegarder projet", command=self.save_project).pack(side="left", padx=2)
+        ttk.Button(row2, text="Charger projet", command=self.load_project).pack(side="left", padx=2)
 
-        cover_frame = ttk.LabelFrame(right, text="Mini-apercu Page de garde")
+        # En dessous des 3 colonnes: zone de prévisualisation globale
+        bottom = ttk.Frame(self.root)
+        bottom.pack(fill="both", expand=True, padx=8, pady=8)
+
+        cover_frame = ttk.LabelFrame(bottom, text="Mini-aperçu Page de garde")
         cover_frame.pack(fill="x")
-        self.cover_canvas = tk.Canvas(cover_frame, width=PREVIEW_WIDTH, height=150, bg="white")
+        # Hauteur augmentée + redraw auto
+        self.cover_canvas = tk.Canvas(cover_frame, height=260, bg="white", highlightthickness=1, highlightbackground="#ddd")
         self.cover_canvas.pack(fill="x")
+        self.cover_canvas.bind("<Configure>", lambda e: self.update_cover_preview())
 
-        pager = ttk.Frame(right)
+        pager = ttk.Frame(bottom)
         pager.pack(fill="x", pady=6)
         self.btn_prev = ttk.Button(pager, text="◀ Page précédente", command=self.prev_page)
         self.btn_prev.pack(side="left", padx=4)
@@ -262,10 +287,12 @@ class CompetenceApp:
         self.btn_next = ttk.Button(pager, text="Page suivante ▶", command=self.next_page)
         self.btn_next.pack(side="left", padx=4)
 
-        self.preview_frame = ttk.LabelFrame(right, text="Aperçu des pages (tous domaines)")
+        self.preview_frame = ttk.LabelFrame(bottom, text="Aperçu des pages (tous domaines)")
         self.preview_frame.pack(fill="both", expand=True)
-        self.preview_canvas = tk.Canvas(self.preview_frame, width=PREVIEW_WIDTH, height=PREVIEW_HEIGHT, bg="white")
+        self.preview_canvas = tk.Canvas(self.preview_frame, width=PREVIEW_WIDTH, height=PREVIEW_HEIGHT, bg="white",
+                                        highlightthickness=1, highlightbackground="#ddd")
         self.preview_canvas.pack(fill="both", expand=True)
+        self.preview_canvas.bind("<Configure>", lambda e: self.update_preview())
 
         # drag/resize images sur page courante
         self.preview_canvas.bind("<Button-1>", self.start_drag)
@@ -296,7 +323,7 @@ class CompetenceApp:
         for fname, flabel in SECTION_FIELDS.items():
             ttk.Label(frame, text=flabel + " :").grid(row=r, column=0, sticky="e", padx=(0, 6), pady=(6, 2))
             var = tk.StringVar()
-            ent = ttk.Entry(frame, width=32, textvariable=var)  # largeur réduite
+            ent = ttk.Entry(frame, width=32, textvariable=var)
             ent.grid(row=r, column=1, sticky="we", pady=(6, 2))
 
             def on_change(var=var, k=key, fn=fname):
@@ -327,7 +354,7 @@ class CompetenceApp:
         ttk.Button(btns, text="Effacer le contenu",
                    command=lambda k=key: self._clear_section(k)).pack(side="left", padx=8)
 
-        # Nouveau: bilans
+        # Bilans
         ttk.Button(btns, text="Ajouter bilan",
                    command=lambda k=key: self._add_bilan(k, which=1)).pack(side="left", padx=8)
 
@@ -747,20 +774,31 @@ class CompetenceApp:
         )
         self.update_cover_preview()
 
+    def _cover_canvas_size(self):
+        # taille réelle du canvas de couverture
+        cw = self.cover_canvas.winfo_width()
+        ch = self.cover_canvas.winfo_height()
+        if cw <= 1:
+            cw = PREVIEW_WIDTH
+        if ch <= 1:
+            ch = 260
+        return cw, ch
+
     def update_cover_preview(self):
         c = self.cover_canvas
         c.delete("all")
+        cw, ch = self._cover_canvas_size()
+
         # Tente d'afficher la bannière top si disponible
         top_img_path = self._find_image_variant(os.path.join("img", "banniere-top.png"))
         if top_img_path and os.path.exists(top_img_path):
             try:
                 pil = Image.open(top_img_path)
-                # Redimension à la largeur du canvas
                 ratio = pil.width / pil.height if pil.height else 1.0
-                new_w = PREVIEW_WIDTH
+                new_w = cw
                 new_h = int(new_w / ratio)
-                if new_h > 120:
-                    new_h = 120
+                if new_h > min(160, int(ch * 0.5)):
+                    new_h = min(160, int(ch * 0.5))
                     new_w = int(new_h * ratio)
                 pil = pil.resize((new_w, new_h), Image.LANCZOS)
                 tkimg = ImageTk.PhotoImage(pil)
@@ -769,18 +807,18 @@ class CompetenceApp:
                 banner_h = new_h
             except Exception:
                 banner_h = COVER_HEADER_HEIGHT
-                c.create_rectangle(0, 0, PREVIEW_WIDTH, banner_h, fill=COVER_HEADER_COLOR, outline=COVER_HEADER_COLOR)
+                c.create_rectangle(0, 0, cw, banner_h, fill=COVER_HEADER_COLOR, outline=COVER_HEADER_COLOR)
         else:
             banner_h = COVER_HEADER_HEIGHT
-            c.create_rectangle(0, 0, PREVIEW_WIDTH, banner_h, fill=COVER_HEADER_COLOR, outline=COVER_HEADER_COLOR)
-            c.create_text(PREVIEW_WIDTH // 2, banner_h // 2, text="PROFIL DE L'ELEVE", fill="white",
+            c.create_rectangle(0, 0, cw, banner_h, fill=COVER_HEADER_COLOR, outline=COVER_HEADER_COLOR)
+            c.create_text(cw // 2, banner_h // 2, text="PROFIL DE L'ELEVE", fill="white",
                           font=("Arial", 16, "bold"))
 
         # Zone texte à gauche (infos personnelles) avec fond olive
         x = TEXT_MARGIN_X
         y = banner_h + 10
-        bg_w = 420
-        bg_h = 90
+        bg_w = min(480, int(cw * 0.55))
+        bg_h = int(ch * 0.5)
         c.create_rectangle(x - 10, y - 8, x - 10 + bg_w, y - 8 + bg_h,
                            fill=COVER_PERSONAL_BG_PREVIEW, outline=COVER_PERSONAL_BG_PREVIEW)
 
@@ -794,17 +832,18 @@ class CompetenceApp:
 
         ty = y
         for line in lines:
-            c.create_text(x, ty, anchor="nw", text=line, font=("Arial", 11, "bold"), fill="white")
-            ty += 22
+            c.create_text(x, ty, anchor="nw", text=line, font=("Arial", 12, "bold"), fill="white")
+            ty += 24
 
         # Photo (si fournie) - mini-aperçu à droite
         if self.photo_path and os.path.exists(self.photo_path):
             try:
+                max_side = min(160, int(ch * 0.55))
                 pil = Image.open(self.photo_path)
-                pil.thumbnail((120, 120), Image.LANCZOS)
+                pil.thumbnail((max_side, max_side), Image.LANCZOS)
                 tkimg = ImageTk.PhotoImage(pil)
                 c.image = tkimg  # éviter le GC
-                c.create_image(PREVIEW_WIDTH - 140, banner_h + 8, anchor="nw", image=tkimg)
+                c.create_image(cw - max_side - 20, banner_h + 8, anchor="nw", image=tkimg)
             except Exception:
                 pass
 
@@ -897,15 +936,26 @@ class CompetenceApp:
             self.current_domain = self.flat_pages[self.current_flat_index][0]
             self.update_preview()
 
+    def _preview_canvas_size(self):
+        cw = self.preview_canvas.winfo_width()
+        ch = self.preview_canvas.winfo_height()
+        if cw <= 1:
+            cw = PREVIEW_WIDTH
+        if ch <= 1:
+            ch = PREVIEW_HEIGHT
+        return cw, ch
+
     def update_preview(self):
         # Met à jour la mini-couverture + la page domaine courante
         self.update_cover_preview()
         c = self.preview_canvas
         c.delete("all")
 
+        cw, ch = self._preview_canvas_size()
+
         if not self.flat_pages:
             self.page_var.set("Page 0/0 — Aucune page (ajoutez des compétences)")
-            c.create_text(PREVIEW_WIDTH//2, PREVIEW_HEIGHT//2, text="Aucune page à afficher",
+            c.create_text(cw//2, ch//2, text="Aucune page à afficher",
                           font=("Arial", 14, "italic"), fill="#666")
             return
 
@@ -915,8 +965,8 @@ class CompetenceApp:
         self.page_var.set(f"Page {self.current_flat_index + 1}/{total_pages} — Domaine: {d} — p.{pi + 1}/{len(pages)}")
 
         ds = self.domain_states[d]
-        # Bandeau de domaine (aperçu simple)
-        c.create_rectangle(0, 0, PREVIEW_WIDTH, HEADER_HEIGHT, fill=ds.color, outline=ds.color)
+        # Bandeau de domaine
+        c.create_rectangle(0, 0, cw, HEADER_HEIGHT, fill=ds.color, outline=ds.color)
         c.create_text(TEXT_MARGIN_X, HEADER_HEIGHT // 2, anchor="w",
                       text=d, fill=DEFAULT_TITLE_FG, font=("Arial", 16, "bold"))
 
@@ -924,7 +974,7 @@ class CompetenceApp:
         y = HEADER_HEIGHT + 14
         x = TEXT_MARGIN_X
         body_font = ("Arial", ds.font_body[1])
-        max_text_width = PREVIEW_WIDTH - 2 * TEXT_MARGIN_X - 10
+        max_text_width = cw - 2 * TEXT_MARGIN_X - 10
 
         page = pages[pi] if 0 <= pi < len(pages) else []
         for is_header, sub, payload in page:
@@ -933,7 +983,6 @@ class CompetenceApp:
                               font=("Arial", 13, "bold", "underline"))
                 y += 22
             else:
-                # Aperçu: on affiche les compétences telles quelles (sans bandeau date)
                 wrapped = self.wrap_text(payload.text, max_text_width, body_font)
                 for li, line in enumerate(wrapped):
                     c.create_text(x + 16, y, anchor="nw",
@@ -1154,49 +1203,49 @@ class CompetenceApp:
             return
         try:
             prs = Presentation()
-            # Page 1: Couverture (horizontale par sections, photos incluses)
+            # Page 1: Couverture
             self._is_cover_export = True
             self.build_cover_slide(prs)
             self._is_cover_export = False
 
             # Pages domaines
             self.rebuild_pages_and_refresh()
+
             for d in self.domain_order:
                 pages = self.domain_page_map.get(d, [])
                 if not pages:
                     continue
                 ds = self.domain_states[d]
                 for pi, page in enumerate(pages):
-                    # Nous allons potentiellement créer plusieurs diapositives par page d'aperçu
                     j = 0
                     current_sd = None
                     first_slide_for_page = True
+
+                    # paramètres d'échelle basés sur la taille réelle de l'aperçu
+                    cw, ch = self._preview_canvas_size()
+                    preview_y_start = HEADER_HEIGHT + 14
+                    preview_y_bottom_margin = 20
+                    content_preview_height_px = max(1, ch - preview_y_start - preview_y_bottom_margin)
+
                     while j < len(page):
                         slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
 
-                        # Description du domaine (si disponible) dans le bandeau de titre
+                        # Description du domaine (si disponible)
                         domain_desc = (self.domain_descriptions.get(d) or "").strip()
 
-                        # Bandeau domaine dynamique (s'agrandit pour tout contenir)
+                        # Bandeau domaine dynamique
                         banner_h = self.add_domain_banner(slide, prs, d, ds.color, domain_desc)
 
-                        # Zone de contenu (position de référence)
+                        # Zone de contenu
                         left = Inches(0.6)
-                        # Le contenu commence sous le bandeau (plus marge)
                         content_top = banner_h + Inches(0.1)
                         width = prs.slide_width - Inches(1.2)
-                        # Réserver un peu plus d'espace en bas (pour esthétique)
                         height = prs.slide_height - content_top - Inches(0.9)
 
-                        # Estimation basée sur l'aperçu pour maîtriser le débordement
-                        preview_y_start = HEADER_HEIGHT + 14
-                        preview_y_bottom_margin = 20
-                        content_preview_height_px = max(1, PREVIEW_HEIGHT - preview_y_start - preview_y_bottom_margin)
+                        body_font_size = ds.font_body[1]
+                        max_text_width_px = cw - 2 * TEXT_MARGIN_X - 10
                         y_px = preview_y_start
                         max_y_px = preview_y_start + content_preview_height_px
-
-                        body_font_size = ds.font_body[1]
-                        max_text_width_px = PREVIEW_WIDTH - 2 * TEXT_MARGIN_X - 10
                         last_ts_slide = None
 
                         # Si on continue un sous-domaine sur une nouvelle diapo, réafficher son en-tête
@@ -1214,9 +1263,6 @@ class CompetenceApp:
                                 r, g, b = self.hex_to_rgb(self.domain_states[d].color)
                                 p.font.color.rgb = RGBColor(r, g, b)
                                 y_px += 22
-                            else:
-                                # espace impossible, on passera à la diapo suivante directement
-                                pass
 
                         while j < len(page):
                             is_header, sub, payload = page[j]
@@ -1251,8 +1297,7 @@ class CompetenceApp:
                                 needed = banner_h_px + lines_h_px + SUBHEADER_SPACING
 
                                 if y_px + needed > max_y_px:
-                                    # Nouvelle diapo pour ce même élément (et on réaffichera le header courant)
-                                    # On ne consomme rien ici, on passe à la diapo suivante
+                                    # Nouvelle diapo pour ce même élément
                                     break
 
                                 # Bandeau date si nécessaire
@@ -1270,8 +1315,8 @@ class CompetenceApp:
                                     except Exception:
                                         pass
                                     tb = slide.shapes.add_textbox(left,
-                                                                  content_top + (y_px - preview_y_start) / content_preview_height_px * height,
-                                                                  width, Inches(0.28))
+                                        content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                        width, Inches(0.28))
                                     tf = tb.text_frame
                                     tf.clear()
                                     p = tf.paragraphs[0]
@@ -1286,8 +1331,8 @@ class CompetenceApp:
                                 # Texte de la compétence
                                 bullet_h = max(Inches(0.3), (lines_h_px / content_preview_height_px) * height)
                                 tb = slide.shapes.add_textbox(left + Inches(0.2),
-                                                              content_top + (y_px - preview_y_start) / content_preview_height_px * height,
-                                                              width - Inches(0.2), bullet_h)
+                                    content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                    width - Inches(0.2), bullet_h)
                                 tf = tb.text_frame
                                 tf.clear()
                                 first_line = True
@@ -1309,11 +1354,7 @@ class CompetenceApp:
                             self.export_page_images(slide, prs, d, pi)
                             first_slide_for_page = False
 
-                    # (Pas de bannière bas sur les autres diapositives)
-
-            # IMPORTANT: on ne crée PLUS la page finale avec graphique/pourcentages
-
-            # A la place: diapo "Synthèse" par SECTION complétée
+            # Diapos "Synthèse" par SECTION complétée
             for key in SECTION_KEYS:
                 if self.sections_data[key]["completed"]:
                     self.build_section_synthesis_slide(prs, key)
@@ -1338,7 +1379,6 @@ class CompetenceApp:
                 pic = slide.shapes.add_picture(top_path, Inches(0), Inches(0), width=sw)
                 used_banner_h = pic.height
             except Exception:
-                # fallback: bandeau gris + titre
                 rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), sw, Inches(0.8))
                 rect.fill.solid()
                 r, g, b = self.hex_to_rgb(COVER_HEADER_COLOR)
@@ -1355,7 +1395,6 @@ class CompetenceApp:
                 p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
                 used_banner_h = Inches(0.8)
         else:
-            # Bandeau gris haut avec titre UPPERCASE
             rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), sw, Inches(0.8))
             rect.fill.solid()
             r, g, b = self.hex_to_rgb(COVER_HEADER_COLOR)
@@ -1374,7 +1413,7 @@ class CompetenceApp:
 
         content_top = used_banner_h + Inches(0.15)
 
-        # Colonne principale: fond olive (Accent 3) + infos personnelles
+        # Colonne principale: fond olive + infos personnelles
         left_left = margin
         left_w = sw - 2 * margin
         left_top = content_top
@@ -1409,7 +1448,7 @@ class CompetenceApp:
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
 
-        # Photo élève (en haut à droite dans le bandeau vert)
+        # Photo élève (en haut à droite)
         if self.photo_path and os.path.exists(self.photo_path):
             try:
                 max_photo_h = Inches(1.4)
@@ -1419,16 +1458,15 @@ class CompetenceApp:
             except Exception:
                 pass
 
-        # Présentation HORIZONTALE des sections avec photos par section
+        # Présentation HORIZONTALE des sections
         row_top = left_top + left_h + Inches(0.2)
         col_count = len(SECTION_KEYS)
         if col_count < 1:
-            # Bannière bas même si pas de sections
             self.add_bottom_banner(slide, prs)
             return
         col_w = (sw - 2 * margin) / col_count
-        col_text_h = Inches(1.0)  # zone texte par colonne
-        col_photo_h = Inches(1.6) # zone photo par colonne
+        col_text_h = Inches(1.0)
+        col_photo_h = Inches(1.6)
 
         for idx, key in enumerate(SECTION_KEYS):
             col_left = margin + col_w * idx
@@ -1458,14 +1496,11 @@ class CompetenceApp:
             ph_w = col_w
             ph_h = col_photo_h
 
-            # Cadre de l'emplacement (indicatif)
             ph_rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, col_left, ph_top, ph_w, ph_h)
             ph_rect.fill.solid()
-            # blanc très léger pour bien voir le cadre
             ph_rect.fill.fore_color.rgb = RGBColor(245, 245, 245)
             ph_rect.line.fill.background()
 
-            # Photo si fournie (image section)
             sec_photo = self.sections_data[key]["photo"]
             if sec_photo and os.path.exists(sec_photo):
                 try:
@@ -1476,19 +1511,14 @@ class CompetenceApp:
                     img_ratio = iw / ih if ih else 1.0
                     box_ratio = box_w / box_h if box_h else 1.0
                     if img_ratio >= box_ratio:
-                        # Limité par la largeur
                         pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, width=box_w)
-                        # Centrer verticalement
                         pic.top = ph_top + (box_h - pic.height) // 2
                     else:
-                        # Limité par la hauteur
                         pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, height=box_h)
-                        # Centrer horizontalement
                         pic.left = col_left + (box_w - pic.width) // 2
                 except Exception:
                     pass
 
-        # Bannière bas sur la page de garde
         self.add_bottom_banner(slide, prs)
 
     def add_domain_banner(self, slide, prs, domain_name, color_hex, domain_desc=""):
@@ -1510,8 +1540,9 @@ class CompetenceApp:
         def compute_desc_lines(desc_text: str) -> list[str]:
             if not desc_text.strip():
                 return []
-            width_ratio = float(text_width) / float(sw)
-            max_width_px = max(50, int(PREVIEW_WIDTH * width_ratio) - 10)
+            # approx: largeur disponible proportionnelle au canvas de preview
+            cw, _ = self._preview_canvas_size()
+            max_width_px = max(50, int(cw) - 40)
             return self.wrap_text(desc_text, max_width_px, ("Arial", desc_font_pt))
 
         desc_lines = compute_desc_lines(domain_desc)
@@ -1552,13 +1583,12 @@ class CompetenceApp:
         p.font.bold = True
         p.font.color.rgb = RGBColor(255, 255, 255)
 
-        # Description (si présente), à l'intérieur du même bandeau
+        # Description
         if desc_lines:
             desc_tb = slide.shapes.add_textbox(title_left, desc_top, text_width, desc_height)
             desc_tf = desc_tb.text_frame
             desc_tf.clear()
             desc_tf.word_wrap = True
-            # Injecter les lignes
             first = True
             for line in desc_lines:
                 if first:
@@ -1579,11 +1609,14 @@ class CompetenceApp:
         key = (domain, page_index)
         sw = prs.slide_width
         sh = prs.slide_height
+
+        cw, ch = self._preview_canvas_size()
+
         for img in self.page_images.get(key, []):
-            lx = int(img["pos"][0] / PREVIEW_WIDTH * sw)
-            ly = int(img["pos"][1] / PREVIEW_HEIGHT * sh)
-            w = int(img["size"][0] / PREVIEW_WIDTH * sw)
-            h = int(img["size"][1] / PREVIEW_HEIGHT * sh)
+            lx = int(img["pos"][0] / cw * sw)
+            ly = int(img["pos"][1] / ch * sh)
+            w = int(img["size"][0] / cw * sw)
+            h = int(img["size"][1] / ch * sh)
             try:
                 if w > 0 and h > 0:
                     slide.shapes.add_picture(img["path"], lx, ly, width=w, height=h)
@@ -1598,7 +1631,7 @@ class CompetenceApp:
         sw = prs.slide_width
         sh = prs.slide_height
 
-        # Titre "Synthèse" en taille 20, police unie (pas gras), fond rouge, texte noir, centré
+        # Titre "Synthèse"
         band_h = Inches(0.8)
         rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), sw, band_h)
         rect.fill.solid()
@@ -1611,11 +1644,11 @@ class CompetenceApp:
         p = tf.paragraphs[0]
         p.text = "Synthèse"
         p.font.size = Pt(20)
-        p.font.bold = False  # police unie (non gras)
-        p.font.color.rgb = RGBColor(0, 0, 0)  # texte noir
+        p.font.bold = False
+        p.font.color.rgb = RGBColor(0, 0, 0)
         p.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
 
-        # Sous-titre = intitulé de la SECTION (centré)
+        # Sous-titre = intitulé de la SECTION
         subtitle = SECTION_LABELS.get(key, key)
         tb2 = slide.shapes.add_textbox(Inches(0.6), band_h + Inches(0.2), sw - Inches(1.2), Inches(0.6))
         tf2 = tb2.text_frame
@@ -1626,11 +1659,10 @@ class CompetenceApp:
         p2.font.bold = False
         p2.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
 
-        # Zones de bilans (1 ou 2)
+        # Zones de bilans
         top_content = band_h + Inches(1.0)
         left = Inches(0.6)
         width = sw - Inches(1.2)
-        # Réserver un peu pour la bannière bas
         available_h = sh - top_content - Inches(0.9)
 
         bilan1 = (self.sections_data[key]["bilan1"] or "").strip()
@@ -1644,10 +1676,7 @@ class CompetenceApp:
             # Bilan 2
             self._add_bilan_box(slide, left, top_content + box_h + Inches(0.2), width, box_h, "Bilan", bilan2)
         else:
-            # Un seul grand bloc
             self._add_bilan_box(slide, left, top_content, width, available_h, "Bilan", bilan1)
-
-        # Bannière bas: uniquement sur la couverture (gérée dans add_bottom_banner via un drapeau)
 
     def _add_bilan_box(self, slide, left, top, width, height, title, content):
         # Titre "Bilan"
@@ -1699,13 +1728,12 @@ class CompetenceApp:
             sw = prs.slide_width
             sh = prs.slide_height
             pic = slide.shapes.add_picture(img_path, Inches(0), sh - Inches(0.5), width=sw)
-            # Ajuster tout en bas
             pic.top = sh - pic.height
         except Exception:
             pass
 
     def _find_image_variant(self, path_with_default_ext):
-        # Si le chemin donné existe, l'utiliser, sinon essayer variantes jpg/jpeg si l'utilisateur les a nommées ainsi
+        # Si le chemin donné existe, l'utiliser, sinon essayer variantes jpg/jpeg
         if os.path.exists(path_with_default_ext):
             return path_with_default_ext
         base, ext = os.path.splitext(path_with_default_ext)
@@ -1717,10 +1745,8 @@ class CompetenceApp:
     # ---- Lecture DOMAINES.txt ----
 
     def _load_domaines_descriptions(self):
-        # Cherche DOMAINES.txt à la racine du projet (cwd)
         path = os.path.join(os.getcwd(), "DOMAINES.txt")
         if not os.path.exists(path):
-            # Essaye aussi Domaine/Domaine.txt typo possible
             return
         try:
             domain = None
@@ -1748,7 +1774,6 @@ class CompetenceApp:
                 for raw in f:
                     line = raw.rstrip("\n")
                     if not line.strip():
-                        # on accepte lignes vides comme séparateurs mais on les conserve dans buf pour paragraphes
                         if buf is not None:
                             buf.append("")
                         continue
@@ -1759,7 +1784,6 @@ class CompetenceApp:
                         commit()
                         # Nouveau domaine
                         d = cleaned[3:].strip()
-                        # Enlever "Domaine " en tête si présent
                         if d.lower().startswith("domaine"):
                             parts = d.split(None, 1)
                             d = parts[1] if len(parts) > 1 else d
@@ -1775,10 +1799,8 @@ class CompetenceApp:
                         sub = s
                         buf = []
                     else:
-                        # contenu descriptif
                         buf.append(cleaned)
-                # commit final
-                commit()
+            commit()
         except Exception as e:
             messagebox.showwarning("DOMAINES.txt", f"Impossible de lire DOMAINES.txt : {e}")
 
@@ -1791,14 +1813,11 @@ class CompetenceApp:
 
     @staticmethod
     def sanitize_filename(name: str) -> str:
-        # Remplace caractères invalides Windows et normalise
         invalid = '<>:"/\\|?*'
         for ch in invalid:
             name = name.replace(ch, "_")
         name = name.strip().replace(" ", "_")
-        # Garde lettres/chiffres/_/-
         name = "".join(c if (c.isalnum() or c in ("_", "-")) else "_" for c in name)
-        # Évite les doubles underscores
         while "__" in name:
             name = name.replace("__", "_")
         return name.strip("_") or "presentation"
@@ -1816,7 +1835,6 @@ class CompetenceApp:
         top.title(title)
         top.transient(self.root)
         top.grab_set()
-        # Agrandissement par défaut pour bien voir OK/Annuler sans redimensionner
         top.geometry("800x600")
         top.minsize(700, 520)
 
