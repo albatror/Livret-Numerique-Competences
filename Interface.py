@@ -15,10 +15,10 @@ from collections import OrderedDict
 # ==== Configuration ====
 
 APP_TITLE = "Compétences Pro Ultimate"
-MAX_LINES_PER_SLIDE = 20     # lignes (en-têtes + compétences) par diapositive (utilisé pour l'aperçu)
-LEFT_PANEL_MINW = 300        # min largeur colonne gauche
-COMP_LISTBOX_WIDTH = 62      # largeur listbox (caractères)
-PREVIEW_WIDTH = 900          # valeurs initiales (taille réelle prise au runtime)
+MAX_LINES_PER_SLIDE = 20    # lignes (en-têtes + compétences) par diapositive (utilisé pour l'aperçu)
+LEFT_PANEL_MINW = 300       # min largeur colonne gauche
+COMP_LISTBOX_WIDTH = 62     # largeur listbox (caractères)
+PREVIEW_WIDTH = 900         # valeurs initiales (taille réelle prise au runtime)
 PREVIEW_HEIGHT = 520
 HEADER_HEIGHT = 48
 SUBHEADER_SPACING = 8
@@ -32,7 +32,7 @@ DEFAULT_BODY_SIZE_PT = 12
 DEFAULT_SUBHEADER_BOLD = True
 DEFAULT_SUBHEADER_UNDERLINE = True
 DEFAULT_TITLE_FG = "white"
-COVER_HEADER_COLOR = "#6e6e6e"       # gris bandeau couverture
+COVER_HEADER_COLOR = "#6e6e6e"    # gris bandeau couverture
 COVER_PERSONAL_BG_PREVIEW = "#6B8E23"
 
 # Palette de couleurs pour domaines (assignation automatique)
@@ -88,22 +88,22 @@ class CompetenceApp:
         self.root.title(APP_TITLE)
 
         # Etat
-        self.available = OrderedDict()        # domain -> OrderedDict{subdomain -> [competences]}
+        self.available = OrderedDict()    # domain -> OrderedDict{subdomain -> [competences]}
         self.domain_order = []
-        self.domain_states = {}               # domain -> DomainState
-        self.selected_items = []              # list[CompetenceItem]
-        self.added_set = set()                # keys pour anti-doublon
+        self.domain_states = {}    # domain -> DomainState
+        self.selected_items = []    # list[CompetenceItem]
+        self.added_set = set()    # keys pour anti-doublon
         self.add_batch_counter = 0
 
         # Aperçu global
-        self.domain_page_map = {}             # domain -> list[page]
-        self.item_page_index = {}             # item.key() -> (domain, page_index)
-        self.flat_pages = []                  # list of (domain, page_index)
+        self.domain_page_map = {}    # domain -> list[page]
+        self.item_page_index = {}    # item.key() -> (domain, page_index)
+        self.flat_pages = []    # list of (domain, page_index)
         self.current_flat_index = 0
         self.current_domain = None
 
         # Images par page
-        self.page_images = {}                 # (domain, page_index) -> [img dict]
+        self.page_images = {}    # (domain, page_index) -> [img dict]
 
         # Infos couverture
         self.nom_var = tk.StringVar()
@@ -130,7 +130,7 @@ class CompetenceApp:
         self.sections_widgets = {}
 
         # Descriptions domaines/sous-domaines (DOMAINES.txt)
-        self.domain_descriptions = {}     # domain -> str
+        self.domain_descriptions = {}    # domain -> str
         self.subdomain_descriptions = {}  # (domain, subdomain) -> str
 
         # Pour mesure du texte
@@ -151,8 +151,35 @@ class CompetenceApp:
         self.root.geometry("1600x1000")
         self.root.minsize(1200, 800)
 
+        # Conteneur scrollable principal (scrollbar verticale à droite)
+        outer = ttk.Frame(self.root)
+        outer.pack(fill="both", expand=True)
+
+        self.main_canvas = tk.Canvas(outer, highlightthickness=0)
+        vscroll = ttk.Scrollbar(outer, orient="vertical", command=self.main_canvas.yview)
+        self.main_canvas.configure(yscrollcommand=vscroll.set)
+
+        vscroll.pack(side="right", fill="y")
+        self.main_canvas.pack(side="left", fill="both", expand=True)
+
+        # Frame de contenu interne au canvas
+        self.content = ttk.Frame(self.main_canvas)
+        self._content_window = self.main_canvas.create_window((0, 0), window=self.content, anchor="nw")
+
+        # Ajuste la scrollregion quand le contenu change
+        def _update_scrollregion(event=None):
+            self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
+
+        self.content.bind("<Configure>", _update_scrollregion)
+
+        # Assure que la largeur du contenu suit la largeur du canvas (pas de scroll horizontal)
+        def _sync_content_width(event):
+            self.main_canvas.itemconfigure(self._content_window, width=event.width)
+
+        self.main_canvas.bind("<Configure>", _sync_content_width)
+
         # Ligne haute: informations personnelles + Sections onglets
-        top = ttk.Frame(self.root)
+        top = ttk.Frame(self.content)
         top.pack(fill="x", padx=8, pady=6)
 
         # Informations personnelles + Horodatage
@@ -181,7 +208,7 @@ class CompetenceApp:
             pers.grid_columnconfigure(col, weight=1)
 
         # Bloc Sections (TPS/PS/MS/GS)
-        sections_block = ttk.LabelFrame(self.root, text="Sections de cycle (mémorisées indépendamment)")
+        sections_block = ttk.LabelFrame(self.content, text="Sections de cycle (mémorisées indépendamment)")
         sections_block.pack(fill="x", padx=8, pady=4)
 
         self.sections_nb = ttk.Notebook(sections_block)
@@ -190,7 +217,7 @@ class CompetenceApp:
             self._build_section_tab(key)
 
         # Zone principale: 3 colonnes proportionnelles
-        main = ttk.Frame(self.root)
+        main = ttk.Frame(self.content)
         main.pack(fill="both", expand=True, padx=8, pady=(4, 0))
 
         cols = ttk.Panedwindow(main, orient=tk.HORIZONTAL)
@@ -268,7 +295,7 @@ class CompetenceApp:
         ttk.Button(row2, text="Charger projet", command=self.load_project).pack(side="left", padx=2)
 
         # En dessous des 3 colonnes: zone de prévisualisation globale
-        bottom = ttk.Frame(self.root)
+        bottom = ttk.Frame(self.content)
         bottom.pack(fill="both", expand=True, padx=8, pady=8)
 
         cover_frame = ttk.LabelFrame(bottom, text="Mini-aperçu Page de garde")
@@ -289,8 +316,11 @@ class CompetenceApp:
 
         self.preview_frame = ttk.LabelFrame(bottom, text="Aperçu des pages (tous domaines)")
         self.preview_frame.pack(fill="both", expand=True)
-        self.preview_canvas = tk.Canvas(self.preview_frame, width=PREVIEW_WIDTH, height=PREVIEW_HEIGHT, bg="white",
-                                        highlightthickness=1, highlightbackground="#ddd")
+        self.preview_canvas = tk.Canvas(
+            self.preview_frame,
+            width=PREVIEW_WIDTH, height=PREVIEW_HEIGHT,
+            bg="white", highlightthickness=1, highlightbackground="#ddd"
+        )
         self.preview_canvas.pack(fill="both", expand=True)
         self.preview_canvas.bind("<Configure>", lambda e: self.update_preview())
 
@@ -470,8 +500,8 @@ class CompetenceApp:
                 key = (domain, sub or "", c)
                 if key not in self.added_set:
                     self.comps_list.insert(tk.END, c)
-        else:
-            pass
+                else:
+                    pass
 
     # ---- Ajout / retrait ----
 
@@ -1191,7 +1221,7 @@ class CompetenceApp:
         # Tente de (re)charger DOMAINES.txt pour descriptions
         self._load_domaines_descriptions()
 
-        # Propose NOM_PRENOM.pptx comme nom initial
+        # Propose PRENOM_NOM.pptx comme nom initial
         suggested = self._default_ppt_filename()
         path = filedialog.asksaveasfilename(
             title="Créer PowerPoint",
@@ -1315,8 +1345,8 @@ class CompetenceApp:
                                     except Exception:
                                         pass
                                     tb = slide.shapes.add_textbox(left,
-                                        content_top + (y_px - preview_y_start) / content_preview_height_px * height,
-                                        width, Inches(0.28))
+                                                                  content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                                                  width, Inches(0.28))
                                     tf = tb.text_frame
                                     tf.clear()
                                     p = tf.paragraphs[0]
@@ -1331,8 +1361,8 @@ class CompetenceApp:
                                 # Texte de la compétence
                                 bullet_h = max(Inches(0.3), (lines_h_px / content_preview_height_px) * height)
                                 tb = slide.shapes.add_textbox(left + Inches(0.2),
-                                    content_top + (y_px - preview_y_start) / content_preview_height_px * height,
-                                    width - Inches(0.2), bullet_h)
+                                                              content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                                              width - Inches(0.2), bullet_h)
                                 tf = tb.text_frame
                                 tf.clear()
                                 first_line = True
@@ -1354,7 +1384,7 @@ class CompetenceApp:
                             self.export_page_images(slide, prs, d, pi)
                             first_slide_for_page = False
 
-            # Diapos "Synthèse" par SECTION complétée
+                    # Diapos "Synthèse" par SECTION complétée
             for key in SECTION_KEYS:
                 if self.sections_data[key]["completed"]:
                     self.build_section_synthesis_slide(prs, key)
@@ -1506,16 +1536,16 @@ class CompetenceApp:
                 try:
                     with Image.open(sec_photo) as im:
                         iw, ih = im.size
-                    box_w = ph_w
-                    box_h = ph_h
-                    img_ratio = iw / ih if ih else 1.0
-                    box_ratio = box_w / box_h if box_h else 1.0
-                    if img_ratio >= box_ratio:
-                        pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, width=box_w)
-                        pic.top = ph_top + (box_h - pic.height) // 2
-                    else:
-                        pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, height=box_h)
-                        pic.left = col_left + (box_w - pic.width) // 2
+                        box_w = ph_w
+                        box_h = ph_h
+                        img_ratio = iw / ih if ih else 1.0
+                        box_ratio = box_w / box_h if box_h else 1.0
+                        if img_ratio >= box_ratio:
+                            pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, width=box_w)
+                            pic.top = ph_top + (box_h - pic.height) // 2
+                        else:
+                            pic = slide.shapes.add_picture(sec_photo, col_left, ph_top, height=box_h)
+                            pic.left = col_left + (box_w - pic.width) // 2
                 except Exception:
                     pass
 
@@ -1800,7 +1830,7 @@ class CompetenceApp:
                         buf = []
                     else:
                         buf.append(cleaned)
-            commit()
+                commit()
         except Exception as e:
             messagebox.showwarning("DOMAINES.txt", f"Impossible de lire DOMAINES.txt : {e}")
 
@@ -1825,7 +1855,8 @@ class CompetenceApp:
     def _default_ppt_filename(self) -> str:
         nom = (self.nom_var.get() or "").strip()
         prenom = (self.prenom_var.get() or "").strip()
-        base = f"{nom}_{prenom}".strip("_") if (nom or prenom) else "presentation"
+        # PRENOM_NOM comme demandé
+        base = f"{prenom}_{nom}".strip("_") if (nom or prenom) else "presentation"
         base = self.sanitize_filename(base)
         return f"{base}.pptx"
 
