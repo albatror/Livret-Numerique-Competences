@@ -1,8 +1,5 @@
 # Livret Numérique des Compétences
 
-![Démonstration](demo.png)
-![Démonstration 2](demo2.png)
-![Démonstration 3](demo3.png)
 ![Démonstration 3](demo4.png)
 
 
