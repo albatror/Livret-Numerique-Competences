@@ -3,6 +3,7 @@
 ![Démonstration](demo.png)
 ![Démonstration 2](demo2.png)
 ![Démonstration 3](demo3.png)
+![Démonstration 3](demo4.png)
 
 
 Ce projet est un script avec interface graphique permettant de générer automatiquement un livret numérique des compétences pour chaque élève, sous la forme d’un fichier PowerPoint personnalisé.
