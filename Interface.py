@@ -15,13 +15,13 @@ from collections import OrderedDict
 # ==== Configuration ====
 
 APP_TITLE = "Compétences Pro Ultimate"
-MAX_LINES_PER_SLIDE = 20    # lignes (en-têtes + compétences) par diapositive (utilisé pour l'aperçu)
-LEFT_PANEL_MINW = 300       # min largeur colonne gauche
-COMP_LISTBOX_WIDTH = 62     # largeur listbox (caractères)
-PREVIEW_WIDTH = 900         # valeurs initiales (taille réelle prise au runtime)
+MAX_LINES_PER_SLIDE = 20    # Gardé pour compat; pagination export/aperçu utilise maintenant une simulation pixel
+LEFT_PANEL_MINW = 300
+COMP_LISTBOX_WIDTH = 62
+PREVIEW_WIDTH = 900
 PREVIEW_HEIGHT = 520
 HEADER_HEIGHT = 48
-SUBHEADER_SPACING = 8
+SUBHEADER_SPACING = 6
 LINE_SPACING = 6
 COVER_HEADER_HEIGHT = 64
 TEXT_MARGIN_X = 24
@@ -32,10 +32,10 @@ DEFAULT_BODY_SIZE_PT = 12
 DEFAULT_SUBHEADER_BOLD = True
 DEFAULT_SUBHEADER_UNDERLINE = True
 DEFAULT_TITLE_FG = "white"
-COVER_HEADER_COLOR = "#6e6e6e"    # gris bandeau couverture
+COVER_HEADER_COLOR = "#6e6e6e"
 COVER_PERSONAL_BG_PREVIEW = "#6B8E23"
 
-# Palette de couleurs pour domaines (assignation automatique)
+# Palette de couleurs pour domaines
 DOMAIN_COLORS = [
     "#2E86C1", "#AF7AC5", "#48C9B0", "#F5B041", "#EC7063",
     "#16A085", "#5D6D7E", "#CA6F1E", "#7D3C98", "#1F618D"
@@ -72,8 +72,8 @@ class CompetenceItem:
         self.subdomain = subdomain
         self.text = text
         # Ajouts: horodatage & lot d'ajout (pour regrouper dans le PPT)
-        self.ts = ts    # "Mois Année" ex: "Février 2023"
-        self.batch_id = batch_id  # entier, incrémenté à chaque clic "Ajouter ->"
+        self.ts = ts    # "Mois Année"
+        self.batch_id = batch_id  # entier
 
     def key(self):
         # clé d'unicité
@@ -90,20 +90,20 @@ class CompetenceApp:
         # Etat
         self.available = OrderedDict()    # domain -> OrderedDict{subdomain -> [competences]}
         self.domain_order = []
-        self.domain_states = {}    # domain -> DomainState
-        self.selected_items = []    # list[CompetenceItem]
-        self.added_set = set()    # keys pour anti-doublon
+        self.domain_states = {}           # domain -> DomainState
+        self.selected_items = []          # list[CompetenceItem]
+        self.added_set = set()            # keys pour anti-doublon
         self.add_batch_counter = 0
 
         # Aperçu global
-        self.domain_page_map = {}    # domain -> list[page]
-        self.item_page_index = {}    # item.key() -> (domain, page_index)
-        self.flat_pages = []    # list of (domain, page_index)
+        self.domain_page_map = {}         # domain -> list[page]
+        self.item_page_index = {}         # item.key() -> (domain, page_index)
+        self.flat_pages = []              # list of (domain, page_index)
         self.current_flat_index = 0
         self.current_domain = None
 
         # Images par page
-        self.page_images = {}    # (domain, page_index) -> [img dict]
+        self.page_images = {}             # (domain, page_index) -> [img dict]
 
         # Infos couverture
         self.nom_var = tk.StringVar()
@@ -121,7 +121,7 @@ class CompetenceApp:
             key: {
                 "completed": False,
                 "fields": {fname: "" for fname in SECTION_FIELDS.keys()},
-                "photo": None,   # chemin photo de la section
+                "photo": None,
                 "bilan1": "",
                 "bilan2": "",
                 "bilan2_enabled": False,
@@ -130,7 +130,7 @@ class CompetenceApp:
         self.sections_widgets = {}
 
         # Descriptions domaines/sous-domaines (DOMAINES.txt)
-        self.domain_descriptions = {}    # domain -> str
+        self.domain_descriptions = {}     # domain -> str
         self.subdomain_descriptions = {}  # (domain, subdomain) -> str
 
         # Pour mesure du texte
@@ -151,7 +151,7 @@ class CompetenceApp:
         self.root.geometry("1600x1000")
         self.root.minsize(1200, 800)
 
-        # Conteneur scrollable principal (scrollbar verticale à droite)
+        # Conteneur scrollable principal
         outer = ttk.Frame(self.root)
         outer.pack(fill="both", expand=True)
 
@@ -196,7 +196,6 @@ class CompetenceApp:
         ttk.Entry(pers, textvariable=self.naissance_var, width=16).grid(row=0, column=5, sticky="we", padx=4)
 
         ttk.Button(pers, text="Importer photo", command=self._import_photo).grid(row=0, column=6, padx=6)
-        ttk.Button(pers, text="Marquer comme complétée", command=self._mark_personal_completed).grid(row=0, column=7, padx=6)
 
         # Horodatage
         ttk.Label(pers, text="Mois (ex: Février):").grid(row=1, column=0, sticky="w", pady=(6, 0))
@@ -216,7 +215,7 @@ class CompetenceApp:
         for key in SECTION_KEYS:
             self._build_section_tab(key)
 
-        # Zone principale: 3 colonnes proportionnelles
+        # Zone principale: 3 colonnes
         main = ttk.Frame(self.content)
         main.pack(fill="both", expand=True, padx=8, pady=(4, 0))
 
@@ -276,7 +275,7 @@ class CompetenceApp:
         yscroll_sel.pack(side="left", fill="y")
         self.selected_tree.configure(yscrollcommand=yscroll_sel.set)
 
-        # Barre de boutons en bas de la colonne droite (visibles et regroupés sous la liste)
+        # Barre de boutons en bas de la colonne droite
         btns_center = ttk.Frame(col_right)
         btns_center.pack(fill="x", padx=6, pady=(0, 8))
         # Rangée 1
@@ -286,7 +285,7 @@ class CompetenceApp:
         ttk.Button(row1, text="Aller à la page", command=self.goto_selected_page).pack(side="left", padx=2)
         ttk.Button(row1, text="Exporter PowerPoint", command=self.export_ppt).pack(side="right", padx=2)
 
-        # Rangée 2 (autres actions)
+        # Rangée 2
         row2 = ttk.Frame(btns_center)
         row2.pack(fill="x", pady=2)
         ttk.Button(row2, text="Ajouter image (page)", command=self.add_image_page).pack(side="left", padx=2)
@@ -300,7 +299,6 @@ class CompetenceApp:
 
         cover_frame = ttk.LabelFrame(bottom, text="Mini-aperçu Page de garde")
         cover_frame.pack(fill="x")
-        # Hauteur augmentée + redraw auto
         self.cover_canvas = tk.Canvas(cover_frame, height=260, bg="white", highlightthickness=1, highlightbackground="#ddd")
         self.cover_canvas.pack(fill="x")
         self.cover_canvas.bind("<Configure>", lambda e: self.update_cover_preview())
@@ -445,7 +443,7 @@ class CompetenceApp:
                     if current_domain not in self.available:
                         self.available[current_domain] = OrderedDict()
                         self.domain_order.append(current_domain)
-                        color = DOMAIN_COLORS[(len(self.domain_order)-1) % len(DOMAIN_COLORS)]
+                        color = DOMAIN_COLORS[(len(self.domain_order) - 1) % len(DOMAIN_COLORS)]
                         self.domain_states[current_domain] = DomainState(current_domain, color)
                     current_subdomain = None
 
@@ -462,7 +460,7 @@ class CompetenceApp:
                         if current_domain not in self.available:
                             self.available[current_domain] = OrderedDict()
                             self.domain_order.append(current_domain)
-                            color = DOMAIN_COLORS[(len(self.domain_order)-1) % len(DOMAIN_COLORS)]
+                            color = DOMAIN_COLORS[(len(self.domain_order) - 1) % len(DOMAIN_COLORS)]
                             self.domain_states[current_domain] = DomainState(current_domain, color)
                     sd = current_subdomain if current_subdomain else current_domain
                     self.available[current_domain].setdefault(sd, [])
@@ -597,7 +595,7 @@ class CompetenceApp:
                             self.current_domain = d
                             break
                     self.update_preview()
-                    return
+                return
 
     # ---- Images (par page) ----
 
@@ -880,9 +878,13 @@ class CompetenceApp:
     # ---- Pagination & Aperçu ----
 
     def rebuild_pages_and_refresh(self):
-        # Regroupe par domaine/sous-domaine et découpe en pages (pour l'aperçu)
+        """
+        Regroupe par domaine/sous-domaine et découpe en pages en simulant la hauteur réelle
+        (entêtes, texte wrap, espacements, bandeaux de date).
+        """
         self.domain_page_map.clear()
         self.item_page_index.clear()
+
         # ordre des domaines fixe
         by_domain = OrderedDict((d, OrderedDict()) for d in self.domain_order)
         for it in self.selected_items:
@@ -892,32 +894,66 @@ class CompetenceApp:
             by_domain[d].setdefault(sd, [])
             by_domain[d][sd].append(it)
 
+        # Dimensions d'aperçu pour simuler les hauteurs
+        cw, ch = self._preview_canvas_size()
+        preview_y_start = HEADER_HEIGHT + 14
+        preview_y_bottom_margin = 20
+        content_preview_height_px = max(1, ch - preview_y_start - preview_y_bottom_margin)
+
         for d in self.domain_order:
+            ds = self.domain_states.get(d)
+            if not ds:
+                ds = DomainState(d, DOMAIN_COLORS[(len(self.domain_states)) % len(DOMAIN_COLORS)])
+                self.domain_states[d] = ds
+
+            body_font_size = ds.font_body[1]
+            max_text_width_px = cw - 2 * TEXT_MARGIN_X - 10
             pages = []
             current_page = []
-            line_count = 0
+            y_px = preview_y_start
+            last_ts_on_slide = None
             submap = by_domain.get(d, {})
+            current_sd = None
+
+            def start_new_page(carry_sd=None):
+                nonlocal current_page, y_px, last_ts_on_slide
+                if current_page:
+                    pages.append(current_page)
+                current_page = []
+                y_px = preview_y_start
+                last_ts_on_slide = None
+                if carry_sd:
+                    current_page.append((True, carry_sd, None))
+                    # Hauteur entête sous-domaine approx 22 px
+                    y_px += 22
 
             for sd, items in submap.items():
-                # header sd
-                if line_count + 1 > MAX_LINES_PER_SLIDE and current_page:
-                    pages.append(current_page)
-                    current_page = []
-                    line_count = 0
+                # Entête de sous-domaine
+                header_h = 22
+                if (y_px + header_h > (preview_y_start + content_preview_height_px)) and current_page:
+                    start_new_page(carry_sd=None)
                 current_page.append((True, sd, None))
-                line_count += 1
+                y_px += header_h
+                current_sd = sd
 
-                # items
+                # Items
                 for it in items:
-                    if line_count + 1 > MAX_LINES_PER_SLIDE and current_page:
-                        pages.append(current_page)
-                        current_page = []
-                        line_count = 0
-                        # Répéter le header du sd sur la nouvelle page
-                        current_page.append((True, sd, None))
-                        line_count += 1
+                    ts = (it.ts or "").strip()
+                    prenom = (self.prenom_var.get() or "").strip()
+                    full_text = f"• {prenom} {it.text}".strip()
+                    wrapped_lines = self.wrap_text(full_text, max_text_width_px, ("Arial", body_font_size))
+                    lines_h_px = len(wrapped_lines) * (body_font_size + LINE_SPACING)
+                    banner_h_px = 20 if (ts and ts != last_ts_on_slide) else 0
+                    needed = banner_h_px + lines_h_px + SUBHEADER_SPACING
+
+                    if (y_px + needed > (preview_y_start + content_preview_height_px)) and current_page:
+                        # nouvelle page, répéter le header du sous-domaine
+                        start_new_page(carry_sd=current_sd)
+
+                    # Ajouter l'item
                     current_page.append((False, sd, it))
-                    line_count += 1
+                    y_px += needed
+                    last_ts_on_slide = ts
 
             if current_page:
                 pages.append(current_page)
@@ -1246,16 +1282,16 @@ class CompetenceApp:
                 if not pages:
                     continue
                 ds = self.domain_states[d]
+                # paramètres d'échelle basés sur la taille réelle de l'aperçu
+                cw, ch = self._preview_canvas_size()
+                preview_y_start = HEADER_HEIGHT + 14
+                preview_y_bottom_margin = 20
+                content_preview_height_px = max(1, ch - preview_y_start - preview_y_bottom_margin)
+
                 for pi, page in enumerate(pages):
                     j = 0
                     current_sd = None
                     first_slide_for_page = True
-
-                    # paramètres d'échelle basés sur la taille réelle de l'aperçu
-                    cw, ch = self._preview_canvas_size()
-                    preview_y_start = HEADER_HEIGHT + 14
-                    preview_y_bottom_margin = 20
-                    content_preview_height_px = max(1, ch - preview_y_start - preview_y_bottom_margin)
 
                     while j < len(page):
                         slide = prs.slides.add_slide(prs.slide_layouts[6])  # blanc
@@ -1279,31 +1315,47 @@ class CompetenceApp:
                         last_ts_slide = None
 
                         # Si on continue un sous-domaine sur une nouvelle diapo, réafficher son en-tête
+                        # sans dupliquer si l'élément suivant est déjà ce même entête
+                        header_drawn_this_slide = False
                         if current_sd:
-                            needed = 22
-                            if y_px + needed <= max_y_px:
-                                tb = slide.shapes.add_textbox(left, content_top + (y_px - preview_y_start) / content_preview_height_px * height, width, Inches(0.4))
-                                tf = tb.text_frame
-                                tf.clear()
-                                p = tf.paragraphs[0]
-                                p.text = current_sd
-                                p.font.size = Pt(DEFAULT_BODY_SIZE_PT + 1)
-                                p.font.bold = DEFAULT_SUBHEADER_BOLD
-                                p.font.underline = DEFAULT_SUBHEADER_UNDERLINE
-                                r, g, b = self.hex_to_rgb(self.domain_states[d].color)
-                                p.font.color.rgb = RGBColor(r, g, b)
-                                y_px += 22
+                            if not (j < len(page) and page[j][0] and page[j][1] == current_sd):
+                                needed = 22
+                                if y_px + needed <= max_y_px:
+                                    tb = slide.shapes.add_textbox(
+                                        left,
+                                        content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                        width, Inches(0.4)
+                                    )
+                                    tf = tb.text_frame
+                                    tf.clear()
+                                    p = tf.paragraphs[0]
+                                    p.text = current_sd
+                                    p.font.size = Pt(DEFAULT_BODY_SIZE_PT + 1)
+                                    p.font.bold = DEFAULT_SUBHEADER_BOLD
+                                    p.font.underline = DEFAULT_SUBHEADER_UNDERLINE
+                                    r, g, b = self.hex_to_rgb(self.domain_states[d].color)
+                                    p.font.color.rgb = RGBColor(r, g, b)
+                                    y_px += 22
+                                    header_drawn_this_slide = True
 
                         while j < len(page):
                             is_header, sub, payload = page[j]
                             if is_header:
+                                # si le même header a déjà été peint en tête de diapo, le sauter
+                                if sub == current_sd and header_drawn_this_slide:
+                                    j += 1
+                                    continue
                                 needed = 22
                                 if y_px + needed > max_y_px:
                                     # Nouvelle diapo, on reprendra ce header
                                     current_sd = sub
                                     break
                                 # Titre sous-domaine
-                                tb = slide.shapes.add_textbox(left, content_top + (y_px - preview_y_start) / content_preview_height_px * height, width, Inches(0.4))
+                                tb = slide.shapes.add_textbox(
+                                    left,
+                                    content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                    width, Inches(0.4)
+                                )
                                 tf = tb.text_frame
                                 tf.clear()
                                 p = tf.paragraphs[0]
@@ -1315,6 +1367,7 @@ class CompetenceApp:
                                 p.font.color.rgb = RGBColor(r, g, b)
                                 y_px += 22
                                 current_sd = sub
+                                header_drawn_this_slide = True
                                 j += 1
                             else:
                                 # Calcul de la hauteur nécessaire
@@ -1344,9 +1397,11 @@ class CompetenceApp:
                                         band_shape.line.fill.background()
                                     except Exception:
                                         pass
-                                    tb = slide.shapes.add_textbox(left,
-                                                                  content_top + (y_px - preview_y_start) / content_preview_height_px * height,
-                                                                  width, Inches(0.28))
+                                    tb = slide.shapes.add_textbox(
+                                        left,
+                                        content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                        width, Inches(0.28)
+                                    )
                                     tf = tb.text_frame
                                     tf.clear()
                                     p = tf.paragraphs[0]
@@ -1360,9 +1415,11 @@ class CompetenceApp:
 
                                 # Texte de la compétence
                                 bullet_h = max(Inches(0.3), (lines_h_px / content_preview_height_px) * height)
-                                tb = slide.shapes.add_textbox(left + Inches(0.2),
-                                                              content_top + (y_px - preview_y_start) / content_preview_height_px * height,
-                                                              width - Inches(0.2), bullet_h)
+                                tb = slide.shapes.add_textbox(
+                                    left + Inches(0.2),
+                                    content_top + (y_px - preview_y_start) / content_preview_height_px * height,
+                                    width - Inches(0.2), bullet_h
+                                )
                                 tf = tb.text_frame
                                 tf.clear()
                                 first_line = True
@@ -1384,7 +1441,9 @@ class CompetenceApp:
                             self.export_page_images(slide, prs, d, pi)
                             first_slide_for_page = False
 
-                    # Diapos "Synthèse" par SECTION complétée
+                    # fin while j < len(page)
+
+            # Diapos "Synthèse" par SECTION complétée
             for key in SECTION_KEYS:
                 if self.sections_data[key]["completed"]:
                     self.build_section_synthesis_slide(prs, key)
@@ -1555,7 +1614,7 @@ class CompetenceApp:
         """
         Crée le bandeau supérieur de domaine (rectangle coloré + titre + description).
         Le bandeau s'AGRANDIT automatiquement pour que la description ne déborde pas.
-        Retourne la hauteur du bandeau (Length).
+        Retourne la hauteur du bandeau.
         """
         sw = prs.slide_width
 
@@ -1637,6 +1696,7 @@ class CompetenceApp:
     def export_page_images(self, slide, prs, domain, page_index):
         # Map coordonnées apercu -> slide pour la page (domain, page_index)
         key = (domain, page_index)
+
         sw = prs.slide_width
         sh = prs.slide_height
 
