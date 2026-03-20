@@ -10,7 +10,7 @@ a = Analysis(
         ('COMPETENCES.txt', '.'),
         ('DOMAINES.txt', '.'),
         ('COULEURS_DOMAINES.txt', '.'),
-        ('img/*', 'img'),
+        ('img', 'img'),
     ],
     hiddenimports=[],
     hookspath=[],
