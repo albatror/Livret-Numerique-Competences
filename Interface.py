@@ -10,11 +10,26 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.dml import MSO_THEME_COLOR
 import json
 import os
+import sys
 from collections import OrderedDict
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    res_path = os.path.join(base_path, relative_path)
+    if not os.path.exists(res_path) and base_path != os.path.abspath("."):
+        # Fallback to current directory if not found in bundle
+        return os.path.join(os.path.abspath("."), relative_path)
+    return res_path
 
 # ==== Configuration ====
 
-APP_TITLE = "Compétences Pro Ultimate"
+APP_TITLE = "Livret Numérique des Compétences Pro"
 MAX_LINES_PER_SLIDE = 20    # Gardé pour compat; pagination export/aperçu utilise maintenant une simulation pixel
 LEFT_PANEL_MINW = 300
 COMP_LISTBOX_WIDTH = 62
@@ -132,6 +147,9 @@ class CompetenceApp:
         # Descriptions domaines/sous-domaines (DOMAINES.txt)
         self.domain_descriptions = {}     # domain -> str
         self.subdomain_descriptions = {}  # (domain, subdomain) -> str
+
+        # Charger les couleurs depuis COULEURS_DOMAINES.txt si dispo
+        self._load_domain_colors()
 
         # Pour mesure du texte
         self.measure_font = tkfont.Font(family="Arial", size=12)
@@ -418,6 +436,10 @@ class CompetenceApp:
         self.available.clear()
         self.domain_order.clear()
         self.domain_states.clear()
+
+        # Charger les couleurs prédéfinies
+        predefined_colors = self._load_domain_colors()
+
         self.selected_items.clear()
         self.added_set.clear()
         self.domain_page_map.clear()
@@ -443,7 +465,7 @@ class CompetenceApp:
                     if current_domain not in self.available:
                         self.available[current_domain] = OrderedDict()
                         self.domain_order.append(current_domain)
-                        color = DOMAIN_COLORS[(len(self.domain_order) - 1) % len(DOMAIN_COLORS)]
+                        color = predefined_colors.get(current_domain, DOMAIN_COLORS[(len(self.domain_order) - 1) % len(DOMAIN_COLORS)])
                         self.domain_states[current_domain] = DomainState(current_domain, color)
                     current_subdomain = None
 
@@ -460,7 +482,7 @@ class CompetenceApp:
                         if current_domain not in self.available:
                             self.available[current_domain] = OrderedDict()
                             self.domain_order.append(current_domain)
-                            color = DOMAIN_COLORS[(len(self.domain_order) - 1) % len(DOMAIN_COLORS)]
+                            color = predefined_colors.get(current_domain, DOMAIN_COLORS[(len(self.domain_order) - 1) % len(DOMAIN_COLORS)])
                             self.domain_states[current_domain] = DomainState(current_domain, color)
                     sd = current_subdomain if current_subdomain else current_domain
                     self.available[current_domain].setdefault(sd, [])
@@ -818,7 +840,7 @@ class CompetenceApp:
         cw, ch = self._cover_canvas_size()
 
         # Tente d'afficher la bannière top si disponible
-        top_img_path = self._find_image_variant(os.path.join("img", "banniere-top.png"))
+        top_img_path = self._find_image_variant(resource_path(os.path.join("img", "banniere-top.png")))
         if top_img_path and os.path.exists(top_img_path):
             try:
                 pil = Image.open(top_img_path)
@@ -1807,9 +1829,9 @@ class CompetenceApp:
             return
         # Ajoute une image de bannière en bas si trouvée
         path_try = [
-            os.path.join("img", "banniere-bas.png"),
-            os.path.join("img", "banniere-bas.jpg"),
-            os.path.join("img", "banniere-bas.jpeg"),
+            resource_path(os.path.join("img", "banniere-bas.png")),
+            resource_path(os.path.join("img", "banniere-bas.jpg")),
+            resource_path(os.path.join("img", "banniere-bas.jpeg")),
         ]
         img_path = next((p for p in path_try if os.path.exists(p)), None)
         if not img_path:
@@ -1835,7 +1857,7 @@ class CompetenceApp:
     # ---- Lecture DOMAINES.txt ----
 
     def _load_domaines_descriptions(self):
-        path = os.path.join(os.getcwd(), "DOMAINES.txt")
+        path = resource_path("DOMAINES.txt")
         if not os.path.exists(path):
             return
         try:
@@ -1895,6 +1917,30 @@ class CompetenceApp:
             messagebox.showwarning("DOMAINES.txt", f"Impossible de lire DOMAINES.txt : {e}")
 
     # ---- Utils ----
+
+    def _load_domain_colors(self):
+        path = resource_path("COULEURS_DOMAINES.txt")
+        if not os.path.exists(path):
+            return {}
+        colors = {}
+        try:
+            current_domain = None
+            with open(path, "r", encoding="utf-8-sig") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line: continue
+                    if line.startswith("##-Domaine"):
+                        current_domain = line.replace("##-Domaine", "").strip()
+                        if current_domain.lower().startswith("domaine"):
+                            parts = current_domain.split(None, 1)
+                            current_domain = parts[1] if len(parts) > 1 else current_domain
+                    elif line.startswith("#") and current_domain:
+                        color = line.strip()
+                        if len(color) == 7 and color.startswith("#"):
+                            colors[current_domain] = color
+        except Exception as e:
+            print(f"Erreur chargement couleurs: {e}")
+        return colors
 
     @staticmethod
     def hex_to_rgb(hx):

@@ -32,17 +32,34 @@ Ce projet est un script avec interface graphique permettant de générer automat
 
 ## Installation & Utilisation
 
-1. Installez Git (Google search)
+### Version Exécutable (Recommandé pour Windows)
+1. Téléchargez la dernière version de `LivretCompetences.exe` depuis les [Releases](https://github.com/albatror/Livret-Numerique-Competences/releases) (ou générée via GitHub Actions).
+2. Lancez l'exécutable directement. Aucune installation de Python ou de bibliothèques n'est requise.
+
+### Version Développeur / Manuel
+1. Installez Python 3.x et Git.
 2. Clonez ce dépôt :
    ```bash
    git clone https://github.com/albatror/Livret-Numerique-Competences.git
+   cd Livret-Numerique-Competences
    ```
-   pip install pillow
-   pip install python-pptx
+3. Installez les dépendances :
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Lancez le script principal :
+   ```bash
+   python Interface.py
+   ```
 
-3. Placez votre fichier de compétences au format texte dans le répertoire du projet.
-4. Lancez le script principal (voir documentation interne pour le nom exact du fichier à exécuter).
-5. Suivez l’interface pour saisir les informations de l’élève, choisir les compétences et générer le livret PowerPoint.
+### Construction de l'exécutable
+Si vous souhaitez construire vous-même l'exécutable sous Windows :
+- Double-cliquez sur `build_windows.bat` (nécessite Python installé).
+- L'exécutable sera généré dans le dossier `dist/`.
+
+## Utilisation de l'application
+1. Placez votre fichier `COMPETENCES.txt` (et éventuellement `DOMAINES.txt` et `COULEURS_DOMAINES.txt`) dans le même répertoire que l'application (ou ils seront chargés par défaut s'ils sont inclus dans le pack).
+2. Suivez l’interface pour saisir les informations de l’élève, choisir les compétences et générer le livret PowerPoint.
 
 ## Dépendances
 
