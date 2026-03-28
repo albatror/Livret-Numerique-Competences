@@ -38,6 +38,8 @@ vcpkg install gtk:x64-windows libzip:x64-windows libxml2:x64-windows
 vcpkg integrate install
 ```
 
+> **Note :** Si Visual Studio ne trouve pas les fichiers include (`gtk/gtk.h`, `zip.h`), assurez-vous d'avoir bien exécuté `vcpkg integrate install` dans un terminal administrateur et de redémarrer Visual Studio.
+
 #### Compilation
 1. Ouvrez `LivretCompetences.sln` dans Visual Studio.
 2. Sélectionnez la configuration `Release` et la plateforme `x64`.
