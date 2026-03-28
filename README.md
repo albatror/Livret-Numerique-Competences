@@ -33,7 +33,7 @@ Ce projet est un script avec interface graphique permettant de générer automat
 ## Installation & Utilisation
 
 ### Version Exécutable (Recommandé pour Windows)
-1. Téléchargez la dernière version de `LivretCompetences.exe` depuis les [Releases](https://github.com/albatror/Livret-Numerique-Competences/releases) (ou générée via GitHub Actions).
+1. Téléchargez la dernière version de `LivretCompetences.exe` depuis les [Releases](https://github.com/albatror/Livret-Numerique-Competences/releases) (ou générée via GitHub Actions https://github.com/albatror/Livret-Numerique-Competences/actions/runs/23358088316/artifacts/6031788261).
 2. Lancez l'exécutable directement. Aucune installation de Python ou de bibliothèques n'est requise.
 
 ### Version Développeur / Manuel
