@@ -32,13 +32,14 @@ make
 - [Visual Studio 2022](https://visualstudio.microsoft.com/)
 - [vcpkg](https://vcpkg.io/) (recommandé pour gérer les dépendances)
 
-#### Installation des dépendances avec vcpkg
-```powershell
-vcpkg install gtk:x64-windows libzip:x64-windows libxml2:x64-windows
-vcpkg integrate install
-```
+#### Installation des dépendances
+Le projet utilise le mode **Manifest** de vcpkg. Visual Studio installera automatiquement les dépendances (`gtk`, `libzip`, `libxml2`) à l'ouverture de la solution, à condition que vcpkg soit intégré.
 
-> **Note :** Si Visual Studio ne trouve pas les fichiers include (`gtk/gtk.h`, `zip.h`), assurez-vous d'avoir bien exécuté `vcpkg integrate install` dans un terminal administrateur et de redémarrer Visual Studio.
+1. Installez [vcpkg](https://vcpkg.io/).
+2. Intégrez-le à Visual Studio (une seule fois par machine) :
+   ```powershell
+   vcpkg integrate install
+   ```
 
 #### Compilation
 1. Ouvrez `LivretCompetences.sln` dans Visual Studio.

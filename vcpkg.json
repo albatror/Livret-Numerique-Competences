@@ -1,0 +1,9 @@
+{
+  "name": "livret-competences",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "gtk",
+    "libzip",
+    "libxml2"
+  ]
+}
