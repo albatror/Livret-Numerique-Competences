@@ -9,27 +9,22 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install -r requirements.txt
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libzip-dev libxml2-dev build-essential pkg-config
 
-    - name: Build with PyInstaller
+    - name: Build
       run: |
-        pyinstaller --clean LivretCompetences.spec
+        make
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Livret-Numerique-Competences-EXE
-        path: dist/LivretCompetences.exe
+        name: Livret-Numerique-Competences-C-Build
+        path: LivretCompetences
