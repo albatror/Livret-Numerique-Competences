@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char *trim_quotes(char *str) {
+static char *trim_quotes_and_unescape(char *str) {
     if (str[0] == '"') {
         str++;
         size_t len = strlen(str);
@@ -12,6 +12,8 @@ static char *trim_quotes(char *str) {
         }
     }
     char *res = strdup(str);
+    if (!res) return NULL;
+
     char *src = res, *dst = res;
     while (*src) {
         if (*src == '"' && *(src+1) == '"') {
@@ -31,6 +33,10 @@ static char **parse_csv_line(FILE *f, int *num_cols) {
     int in_quotes = 0;
     size_t buffer_size = 1024;
     char *buffer = malloc(buffer_size);
+    if (!buffer) {
+        *num_cols = 0;
+        return NULL;
+    }
     size_t pos = 0;
     int c;
 
@@ -39,8 +45,11 @@ static char **parse_csv_line(FILE *f, int *num_cols) {
         if (c == EOF) break;
 
         if (pos + 1 >= buffer_size) {
-            buffer_size *= 2;
-            buffer = realloc(buffer, buffer_size);
+            size_t new_size = buffer_size * 2;
+            char *new_buffer = realloc(buffer, new_size);
+            if (!new_buffer) break; // Should probably handle better
+            buffer = new_buffer;
+            buffer_size = new_size;
         }
 
         if (c == '"') {
@@ -48,8 +57,11 @@ static char **parse_csv_line(FILE *f, int *num_cols) {
             buffer[pos++] = c;
         } else if (c == ',' && !in_quotes) {
             buffer[pos] = '\0';
-            cols = realloc(cols, sizeof(char *) * (count + 1));
-            cols[count++] = trim_quotes(buffer);
+            char **new_cols = realloc(cols, sizeof(char *) * (count + 1));
+            if (new_cols) {
+                cols = new_cols;
+                cols[count++] = trim_quotes_and_unescape(buffer);
+            }
             pos = 0;
         } else if (c == '\n' && !in_quotes) {
             break;
@@ -62,8 +74,11 @@ static char **parse_csv_line(FILE *f, int *num_cols) {
 
     if (pos > 0 || count > 0) {
         buffer[pos] = '\0';
-        cols = realloc(cols, sizeof(char *) * (count + 1));
-        cols[count++] = trim_quotes(buffer);
+        char **new_cols = realloc(cols, sizeof(char *) * (count + 1));
+        if (new_cols) {
+            cols = new_cols;
+            cols[count++] = trim_quotes_and_unescape(buffer);
+        }
     } else if (c == EOF && count == 0) {
         free(buffer);
         *num_cols = 0;
@@ -80,8 +95,11 @@ CompetenceList load_competences(const char *filename) {
     if (!f) return (CompetenceList){NULL, 0};
 
     int num_cols;
-    char **header = parse_csv_line(f, &num_cols); // Skip header
-    if(header) { for(int i=0; i<num_cols; i++) free(header[i]); free(header); }
+    char **header = parse_csv_line(f, &num_cols);
+    if(header) {
+        for(int i=0; i<num_cols; i++) free(header[i]);
+        free(header);
+    }
 
     Competence *items = NULL;
     int count = 0;
@@ -90,12 +108,17 @@ CompetenceList load_competences(const char *filename) {
         char **cols = parse_csv_line(f, &num_cols);
         if (cols == NULL) break;
         if (num_cols >= 3) {
-            items = realloc(items, sizeof(Competence) * (count + 1));
-            items[count].domain = cols[0];
-            items[count].subdomain = cols[1];
-            items[count].text = cols[2];
-            count++;
-            for (int i = 3; i < num_cols; i++) free(cols[i]);
+            Competence *new_items = realloc(items, sizeof(Competence) * (count + 1));
+            if (new_items) {
+                items = new_items;
+                items[count].domain = cols[0];
+                items[count].subdomain = cols[1];
+                items[count].text = cols[2];
+                count++;
+                for (int i = 3; i < num_cols; i++) free(cols[i]);
+            } else {
+                for (int i = 0; i < num_cols; i++) free(cols[i]);
+            }
         } else {
             for (int i = 0; i < num_cols; i++) free(cols[i]);
         }
@@ -107,6 +130,7 @@ CompetenceList load_competences(const char *filename) {
 }
 
 void free_competences(CompetenceList list) {
+    if (!list.items) return;
     for (int i = 0; i < list.count; i++) {
         free(list.items[i].domain);
         free(list.items[i].subdomain);
@@ -127,12 +151,17 @@ DomaineList load_domaines(const char *filename) {
         char **cols = parse_csv_line(f, &num_cols);
         if (cols == NULL) break;
         if (num_cols >= 3) {
-            items = realloc(items, sizeof(Domaine) * (count + 1));
-            items[count].domain = cols[0];
-            items[count].subdomain = cols[1];
-            items[count].description = cols[2];
-            count++;
-            for (int i = 3; i < num_cols; i++) free(cols[i]);
+            Domaine *new_items = realloc(items, sizeof(Domaine) * (count + 1));
+            if (new_items) {
+                items = new_items;
+                items[count].domain = cols[0];
+                items[count].subdomain = cols[1];
+                items[count].description = cols[2];
+                count++;
+                for (int i = 3; i < num_cols; i++) free(cols[i]);
+            } else {
+                for (int i = 0; i < num_cols; i++) free(cols[i]);
+            }
         } else {
             for (int i = 0; i < num_cols; i++) free(cols[i]);
         }
@@ -143,6 +172,7 @@ DomaineList load_domaines(const char *filename) {
 }
 
 void free_domaines(DomaineList list) {
+    if (!list.items) return;
     for (int i = 0; i < list.count; i++) {
         free(list.items[i].domain);
         free(list.items[i].subdomain);
@@ -163,11 +193,16 @@ DomainColorList load_couleurs(const char *filename) {
         char **cols = parse_csv_line(f, &num_cols);
         if (cols == NULL) break;
         if (num_cols >= 2) {
-            items = realloc(items, sizeof(DomainColor) * (count + 1));
-            items[count].domain = cols[0];
-            items[count].color = cols[1];
-            count++;
-            for (int i = 2; i < num_cols; i++) free(cols[i]);
+            DomainColor *new_items = realloc(items, sizeof(DomainColor) * (count + 1));
+            if (new_items) {
+                items = new_items;
+                items[count].domain = cols[0];
+                items[count].color = cols[1];
+                count++;
+                for (int i = 2; i < num_cols; i++) free(cols[i]);
+            } else {
+                for (int i = 0; i < num_cols; i++) free(cols[i]);
+            }
         } else {
             for (int i = 0; i < num_cols; i++) free(cols[i]);
         }
@@ -178,6 +213,7 @@ DomainColorList load_couleurs(const char *filename) {
 }
 
 void free_couleurs(DomainColorList list) {
+    if (!list.items) return;
     for (int i = 0; i < list.count; i++) {
         free(list.items[i].domain);
         free(list.items[i].color);

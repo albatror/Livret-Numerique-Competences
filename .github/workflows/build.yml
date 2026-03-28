@@ -9,22 +9,28 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
 
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup vcpkg
+      run: |
+        vcpkg integrate install
+
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libzip-dev libxml2-dev build-essential pkg-config
+        vcpkg install gtk:x64-windows libzip:x64-windows libxml2:x64-windows
 
     - name: Build
       run: |
-        make
+        msbuild LivretCompetences.sln /p:Configuration=Release /p:Platform=x64
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Livret-Numerique-Competences-C-Build
-        path: LivretCompetences
+        name: Livret-Numerique-Competences-Windows-Build
+        path: x64/Release/LivretCompetences.exe

@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = $(shell pkg-config --cflags gtk+-3.0 libxml-2.0) -Isrc/data
+CFLAGS = $(shell pkg-config --cflags gtk+-3.0 libxml-2.0) -Isrc
 LDFLAGS = $(shell pkg-config --libs gtk+-3.0) -lzip -lxml2
 
 SRC = src/main.c src/data/data.c src/pptx/pptx_gen.c
