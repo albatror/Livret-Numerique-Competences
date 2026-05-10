@@ -1,2097 +1,1203 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Livret Numérique des Compétences</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #2E86C1;
-            --secondary-color: #AF7AC5;
-            --accent-color: #48C9B0;
-            --text-color: #333;
-            --bg-color: #f5f6fa;
-            --sidebar-bg: #ffffff;
-            --border-color: #e1e8ed;
-            --success-color: #27ae60;
-            --danger-color: #e74c3c;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-            --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
-        }
-
-        .app-container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .sidebar {
-            width: 280px;
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--border-color);
-            padding: 20px;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-        }
-
-        .sidebar h1 {
-            font-size: 18px;
-            margin-bottom: 30px;
-            color: var(--primary-color);
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .main-content {
-            flex: 1;
-            margin-left: 280px;
-            padding: 30px;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .nav-item:hover {
-            background: var(--bg-color);
-        }
-
-        .nav-item.active {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .section-card {
-            background: white;
-            padding: 30px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
-            margin-bottom: 20px;
-        }
-
-        .section-card h2 {
-            margin-bottom: 24px;
-            color: var(--primary-color);
-            font-size: 24px;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group label {
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: var(--text-color);
-        }
-
-        .form-group input {
-            padding: 12px 16px;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-md);
-            font-size: 16px;
-            transition: border-color 0.2s;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        .photo-upload {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .photo-upload label {
-            display: block;
-            margin-bottom: 12px;
-            font-weight: 500;
-        }
-
-        .photo-upload input[type="file"] {
-            padding: 12px;
-            border: 2px dashed var(--border-color);
-            border-radius: var(--radius-md);
-            cursor: pointer;
-        }
-
-        .preview-photo {
-            max-width: 150px;
-            max-height: 150px;
-            border-radius: var(--radius-md);
-            margin-top: 12px;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .sections-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-
-        .section-tab {
-            padding: 10px 20px;
-            background: var(--bg-color);
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .section-tab:hover {
-            border-color: var(--primary-color);
-        }
-
-        .section-tab.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .section-tab.completed {
-            position: relative;
-        }
-
-        .section-tab.completed::after {
-            content: '✓';
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: var(--success-color);
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-
-        .section-content {
-            background: var(--bg-color);
-            padding: 20px;
-            border-radius: var(--radius-md);
-        }
-
-        .competences-section {
-            background: white;
-            padding: 30px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
-            margin-bottom: 20px;
-        }
-
-        .competences-container {
-            display: flex;
-            gap: 20px;
-            height: 500px;
-        }
-
-        .tree-panel, .competences-panel, .selected-panel {
-            flex: 1;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 16px;
-            overflow-y: auto;
-        }
-
-        .tree-panel h3, .competences-panel h3, .selected-panel h3 {
-            margin-bottom: 12px;
-            color: var(--primary-color);
-            font-size: 16px;
-        }
-
-        .tree-domain {
-            margin-bottom: 4px;
-        }
-
-        .tree-domain-header {
-            padding: 8px 12px;
-            cursor: pointer;
-            border-radius: var(--radius-sm);
-            font-weight: 500;
-        }
-
-        .tree-domain-header:hover {
-            background: var(--bg-color);
-        }
-
-        .expand-icon {
-            display: inline-block;
-            width: 16px;
-            font-size: 10px;
-        }
-
-        .tree-subdomain {
-            padding: 6px 12px 6px 28px;
-            cursor: pointer;
-            font-size: 14px;
-            border-radius: var(--radius-sm);
-            margin: 2px 0;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .tree-subdomain:hover {
-            background: var(--bg-color);
-        }
-
-        .tree-subdomain.selected {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .count {
-            font-size: 12px;
-            opacity: 0.7;
-        }
-
-        .competence-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-radius: var(--radius-sm);
-            margin-bottom: 4px;
-        }
-
-        .competence-item:hover {
-            background: var(--bg-color);
-        }
-
-        .competence-item.selected {
-            background: var(--accent-color);
-            color: white;
-        }
-
-        .selected-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px;
-            background: var(--bg-color);
-            border-radius: var(--radius-sm);
-            margin-bottom: 4px;
-        }
-
-        .remove-btn {
-            background: var(--danger-color);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .selected-item .domain {
-            font-size: 10px;
-            background: #ddd;
-            padding: 2px 6px;
-            border-radius: 3px;
-        }
-
-        .selected-item .subdomain {
-            font-size: 11px;
-            color: #666;
-        }
-
-        .selected-item .text {
-            flex: 1;
-            font-size: 14px;
-        }
-
-        .preview-controls {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .preview-controls button {
-            padding: 10px 20px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .preview-controls button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .page-info {
-            font-weight: 500;
-        }
-
-        .preview-container {
-            overflow-x: auto;
-        }
-
-        .preview-slide {
-            min-width: 800px;
-            height: 600px;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-left-width: 6px;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-md);
-        }
-
-        .slide-header {
-            background: var(--primary-color);
-            color: white;
-            padding: 20px;
-        }
-
-        .slide-header h3 {
-            font-size: 24px;
-        }
-
-        .slide-content {
-            padding: 30px;
-            max-height: 520px;
-            overflow-y: auto;
-        }
-
-        .subdomain-title {
-            color: var(--primary-color);
-            font-size: 18px;
-            margin: 16px 0 12px;
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 4px;
-        }
-
-        .competence-entry {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            margin: 8px 0;
-            line-height: 1.5;
-        }
-
-        .bullet {
-            color: var(--primary-color);
-            font-weight: bold;
-        }
-
-        .timestamp {
-            font-size: 12px;
-            color: #888;
-            font-style: italic;
-        }
-
-        .empty {
-            color: #999;
-            font-style: italic;
-            padding: 16px;
-            text-align: center;
-        }
-
-        .export-buttons {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-export {
-            padding: 12px 24px;
-            background: var(--success-color);
-            color: white;
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        .btn-export:hover {
-            background: #219150;
-        }
-
-        .btn-primary {
-            padding: 12px 24px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        .btn-primary:hover {
-            opacity: 0.9;
-        }
-
-        .section-fields {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin: 16px 0;
-        }
-
-        .section-field-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .section-field-group input {
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            font-size: 14px;
-        }
-
-        .section-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 16px;
-        }
-
-        .section-actions button {
-            padding: 8px 16px;
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .section-actions button:hover {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .section-photo {
-            margin-top: 16px;
-            padding: 16px;
-            background: var(--bg-color);
-            border-radius: var(--radius-sm);
-            text-align: center;
-        }
-
-        .section-photo img {
-            max-width: 200px;
-            max-height: 200px;
-            border-radius: var(--radius-sm);
-        }
-
-        .color-picker {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .color-picker input[type="color"] {
-            width: 50px;
-            height: 36px;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-        }
-
-        .color-picker input[type="number"] {
-            width: 80px;
-            padding: 8px;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-sm);
-        }
-
-        /* Styles pour l'aperçu de la page de garde */
-        .cover-preview-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .cover-preview-section h3 {
-            margin-bottom: 16px;
-            color: var(--primary-color);
-            font-size: 18px;
-        }
-
-        .cover-preview-container {
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-        }
-
-        .cover-preview-header {
-            background: #6e6e6e;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .cover-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .cover-preview-content {
-            padding: 24px;
-            background: white;
-        }
-
-        .cover-info-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .info-line {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .info-label {
-            font-weight: 500;
-            color: var(--text-color);
-        }
-
-        .info-value {
-            color: var(--text-color);
-            font-style: italic;
-        }
-
-        /* Styles pour l'administration */
-        .admin-section {
-            background: white;
-            padding: 30px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
-            margin-bottom: 20px;
-        }
-
-        .admin-actions {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-
-        .admin-container {
-            display: flex;
-            gap: 20px;
-        }
-
-        .admin-domains-panel {
-            flex: 1;
-            min-width: 500px;
-            max-height: 700px;
-            overflow-y: auto;
-        }
-
-        .admin-domains-panel h3 {
-            margin-bottom: 16px;
-            color: var(--primary-color);
-            font-size: 18px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .domain-list {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .domain-item {
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            background: var(--bg-color);
-        }
-
-        .domain-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            background: white;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .domain-color-indicator {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid var(--border-color);
-            flex-shrink: 0;
-        }
-
-        .domain-name {
-            flex: 1;
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .domain-count {
-            font-size: 12px;
-            color: #666;
-            background: var(--bg-color);
-            padding: 4px 8px;
-            border-radius: var(--radius-sm);
-        }
-
-        .domain-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-weight: 500;
-            transition: opacity 0.2s;
-        }
-
-        .btn-small:hover {
-            opacity: 0.85;
-        }
-
-        .btn-modify {
-            background: var(--secondary-color);
-            color: white;
-        }
-
-        .btn-add-subdomain {
-            background: var(--accent-color);
-            color: white;
-        }
-
-        .btn-delete {
-            background: var(--danger-color);
-            color: white;
-        }
-
-        .subdomain-list {
-            display: flex;
-            flex-direction: column;
-            padding: 8px 16px;
-            background: var(--bg-color);
-        }
-
-        .subdomain-item {
-            margin-bottom: 8px;
-        }
-
-        .subdomain-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px;
-            background: white;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border-color);
-        }
-
-        .subdomain-name {
-            flex: 1;
-            font-weight: 500;
-        }
-
-        .subdomain-count {
-            font-size: 11px;
-            color: #666;
-            background: var(--bg-color);
-            padding: 2px 8px;
-            border-radius: var(--radius-sm);
-        }
-
-        .subdomain-actions {
-            display: flex;
-            gap: 6px;
-        }
-
-        .competence-list {
-            padding: 8px 16px 16px;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-top: none;
-            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-        }
-
-        .competence-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            margin-bottom: 6px;
-            background: var(--bg-color);
-            border-radius: var(--radius-sm);
-        }
-
-        .competence-text {
-            flex: 1;
-            font-size: 14px;
-        }
-
-        .btn-expand-subdomain {
-            display: block;
-            width: 100%;
-            padding: 8px;
-            background: var(--bg-color);
-            border: none;
-            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-            cursor: pointer;
-            font-size: 12px;
-            color: var(--primary-color);
-        }
-
-        .btn-expand-subdomain:hover {
-            background: #e8ecf0;
-        }
-
-        .btn-add-comp {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-weight: 500;
-            margin-top: 8px;
-        }
-
-        .btn-add-comp:hover {
-            background: #3eb8a0;
-        }
-
-        /* Modales */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: var(--radius-lg);
-            min-width: 400px;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal-content h3 {
-            margin-bottom: 20px;
-            color: var(--primary-color);
-            font-size: 20px;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 24px;
-        }
-
-        .color-preview {
-            width: 100%;
-            height: 60px;
-            border-radius: var(--radius-sm);
-            border: 2px solid var(--border-color);
-            margin-bottom: 12px;
-        }
-
-        .import-help {
-            background: var(--bg-color);
-            padding: 16px;
-            border-radius: var(--radius-sm);
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-
-        .import-help ul {
-            margin-left: 20px;
-        }
-
-        .import-help li {
-            margin-bottom: 8px;
-            line-height: 1.5;
-        }
-
-        .import-help code {
-            background: #333;
-            color: #0f0;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 13px;
-        }
-
-        @media (max-width: 1200px) {
-            .sidebar {
-                width: 240px;
-            }
-            .main-content {
-                margin-left: 240px;
-                padding: 20px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                border-right: none;
-                border-bottom: 1px solid var(--border-color);
-            }
-            .main-content {
-                margin-left: 0;
-                padding: 15px;
-            }
-            .competences-container {
-                flex-direction: column;
-            }
-            .preview-slide {
-                min-width: 100%;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Livret Numérique des Compétences</title>
+<script src="jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--primary:#2E86C1;--dark:#1a2640;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,.12);--sidebar:220px}
+body{font-family:system-ui,sans-serif;background:#f0f4f8;color:#222;height:100vh;display:flex;overflow:hidden}
+/* SIDEBAR */
+#sidebar{width:var(--sidebar);background:var(--dark);color:#fff;display:flex;flex-direction:column;flex-shrink:0;height:100vh}
+.logo{padding:18px 16px 14px;font-size:13px;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1);line-height:1.4}
+.logo span{opacity:.6;font-size:11px;font-weight:400}
+.nav-item{padding:11px 18px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:9px;border-left:3px solid transparent;transition:.15s;white-space:nowrap;overflow:hidden}
+.nav-item:hover{background:rgba(255,255,255,.08)}
+.nav-item.active{background:rgba(255,255,255,.12);border-left-color:var(--primary);color:#7dd3fc}
+.sidebar-footer{margin-top:auto;padding:14px;border-top:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:6px}
+/* MAIN */
+#main{flex:1;overflow-y:auto;padding:22px;height:100vh}
+.pane{display:none}.pane.active{display:block}
+/* CARDS */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:18px}
+.card h2{font-size:17px;margin-bottom:14px;color:var(--dark)}
+.card h3{font-size:14px;margin-bottom:10px;color:#333}
+/* FORMS */
+.frow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
+.fg label{font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.03em}
+.fg input,.fg textarea,.fg select{border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit;transition:border-color .2s}
+.fg input:focus,.fg textarea:focus{outline:none;border-color:var(--primary)}
+/* BUTTONS */
+.btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:.15s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#1a6fa0}
+.btn-danger{background:#e74c3c;color:#fff}.btn-danger:hover{background:#c0392b}
+.btn-success{background:#27ae60;color:#fff}.btn-success:hover{background:#219a52}
+.btn-ghost{background:#f3f4f6;color:#333;border:1px solid #d1d5db}.btn-ghost:hover{background:#e5e7eb}
+.btn-sm{padding:4px 9px;font-size:12px}
+.bgrp{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+/* TABS (sections cycle) */
+.stabs{display:flex;gap:4px;margin-bottom:14px}
+.stab{padding:7px 16px;border:2px solid #d1d5db;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;background:#fff;transition:.15s}
+.stab.active{border-color:var(--primary);color:var(--primary);background:#e8f4fd}
+.scontent{display:none}.scontent.active{display:block}
+/* PHOTO UPLOAD */
+.photo-box{border:2px dashed #d1d5db;border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:.2s;max-width:240px}
+.photo-box:hover{border-color:var(--primary);background:#f0f8ff}
+.photo-box img{max-width:140px;max-height:140px;border-radius:6px;margin-top:8px;display:block;margin-left:auto;margin-right:auto}
+/* COMPETENCES 3-COL */
+.comp3{display:grid;grid-template-columns:260px 1fr 260px;gap:14px}
+.tree-panel,.mid-panel,.sel-panel{border:1px solid #e5e7eb;border-radius:8px;overflow-y:auto;max-height:460px}
+.domain-hdr{padding:8px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px;border-left:3px solid transparent;transition:.15s}
+.domain-hdr:hover{background:#f9fafb}
+.sub-list{display:none;padding-left:6px}
+.sub-list.open{display:block}
+.sub-item{padding:6px 10px;font-size:12px;cursor:pointer;border-radius:4px;margin:2px 0;transition:.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub-item:hover{background:#e8f4fd}
+.sub-item.active{background:#dbeafe;color:var(--primary);font-weight:600}
+.comp-row{padding:7px 10px;font-size:12px;display:flex;align-items:flex-start;gap:7px;border-bottom:1px solid #f3f4f6;cursor:pointer}
+.comp-row:hover{background:#f9fafb}
+.comp-row.done{color:#aaa;text-decoration:line-through}
+.comp-row input[type=checkbox]{accent-color:var(--primary);margin-top:2px;flex-shrink:0}
+.sel-row{padding:7px 10px;font-size:12px;display:flex;align-items:flex-start;gap:7px;border-bottom:1px solid #f3f4f6}
+.sel-row .rm{margin-left:auto;cursor:pointer;color:#e74c3c;font-size:15px;flex-shrink:0}.sel-row .rm:hover{color:#c0392b}
+.badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;flex-shrink:0;white-space:nowrap}
+/* IMPORT ZONE */
+.drop-zone{border:2px dashed #d1d5db;border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:.2s}
+.drop-zone:hover,.drop-zone.over{border-color:var(--primary);background:#f0f8ff}
+.drop-zone p{color:#666;font-size:13px;margin-top:4px}
+/* INFO BANNER */
+.banner{background:#fef9e7;border-left:4px solid #f5b041;border-radius:6px;padding:9px 13px;font-size:12px;color:#7d6608;margin-bottom:14px}
+/* PREVIEW */
+#preview-canvas{border-radius:8px;box-shadow:var(--shadow);display:block;cursor:crosshair;max-width:100%}
+.page-nav{display:flex;align-items:center;gap:14px;margin-top:10px}
+.page-nav button{background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;font-family:inherit}
+.page-nav button:hover{background:#e5e7eb}
+#page-info{font-size:12px;color:#666;flex:1;text-align:center}
+.preview-wrap{display:flex;gap:16px;align-items:flex-start}
+.preview-tools{background:#fff;border-radius:8px;box-shadow:var(--shadow);padding:16px;min-width:170px;flex-shrink:0}
+.preview-tools h3{font-size:13px;margin-bottom:10px}
+.preview-tools button{width:100%;margin-bottom:7px}
+/* ADMIN */
+.adm-domain{border:1px solid #e5e7eb;border-radius:8px;margin-bottom:10px}
+.adm-hdr{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#f9fafb;cursor:pointer;border-radius:8px}
+.adm-hdr .dot{width:13px;height:13px;border-radius:50%;flex-shrink:0}
+.adm-hdr .lbl{flex:1;font-size:13px;font-weight:600}
+.adm-body{padding:12px 14px;display:none}
+.adm-body.open{display:block}
+.adm-sub{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px}
+.adm-comp{display:flex;align-items:center;padding:3px 0 3px 14px;font-size:12px;border-bottom:1px solid #f9fafb}
+.adm-comp span{flex:1;color:#444}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:24px;min-width:380px;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal h3{font-size:15px;margin-bottom:14px;color:var(--dark)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* COVER CANVAS */
+#cover-canvas{width:100%;border-radius:8px;box-shadow:var(--shadow);display:block}
+/* STATUS */
+.dot-ok{width:9px;height:9px;border-radius:50%;background:#27ae60;display:inline-block}
+.dot-no{width:9px;height:9px;border-radius:50%;background:#e74c3c;display:inline-block}
+</style>
 </head>
 <body>
-    <div id="app">
-        <div class="app-container">
-            <!-- Sidebar Navigation -->
-            <aside class="sidebar">
-                <h1>Compétences Pro</h1>
-                <nav class="nav-menu">
-                    <div class="nav-item" :class="{ active: currentTab === 'profile' }" @click="currentTab = 'profile'">
-                        👤 Profil élève
-                    </div>
-                    <div class="nav-item" :class="{ active: currentTab === 'sections' }" @click="currentTab = 'sections'">
-                        📚 Sections (TPS/PS/MS/GS)
-                    </div>
-                    <div class="nav-item" :class="{ active: currentTab === 'competences' }" @click="currentTab = 'competences'">
-                        📋 Compétences
-                    </div>
-                    <div class="nav-item" :class="{ active: currentTab === 'admin' }" @click="currentTab = 'admin'">
-                        ⚙️ Administration
-                    </div>
-                    <div class="nav-item" :class="{ active: currentTab === 'preview' }" @click="currentTab = 'preview'">
-                        👁️ Aperçu
-                    </div>
-                </nav>
-            </aside>
 
-            <!-- Main Content -->
-            <main class="main-content">
-                <!-- Section Profil avec aperçu miniature -->
-                <section class="section-card profile-section" v-if="currentTab === 'profile'">
-                    <h2>Informations personnelles</h2>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="nom">Nom *</label>
-                            <input type="text" id="nom" v-model="profil.nom" placeholder="ex: DUPONT">
-                        </div>
-                        <div class="form-group">
-                            <label for="prenom">Prénom *</label>
-                            <input type="text" id="prenom" v-model="profil.prenom" placeholder="ex: Marie">
-                        </div>
-                        <div class="form-group">
-                            <label for="naissance">Date de naissance *</label>
-                            <input type="date" id="naissance" v-model="profil.naissance">
-                        </div>
-                        <div class="form-group">
-                            <label for="mois">Mois *</label>
-                            <input type="text" id="mois" v-model="mois" placeholder="ex: Février">
-                        </div>
-                        <div class="form-group">
-                            <label for="annee">Année *</label>
-                            <input type="text" id="annee" v-model="annee" placeholder="ex: 2023">
-                        </div>
-                    </div>
-                    <div class="photo-upload">
-                        <label>Photo de l'élève</label>
-                        <input type="file" accept="image/*" @change="handlePhotoUpload">
-                        <img v-if="photoPreview" :src="photoPreview" class="preview-photo" alt="Photo de l'élève">
-                    </div>
-                    <div class="export-buttons">
-                        <button class="btn-primary" @click="saveProject">
-                            💾 Sauvegarder projet
-                        </button>
-                    </div>
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="logo">📚 Livret Numérique<br><span>Compétences Maternelle</span></div>
+  <div class="nav-item active" data-tab="profil" onclick="switchTab('profil')">👤 Profil de l'élève</div>
+  <div class="nav-item" data-tab="sections" onclick="switchTab('sections')">📋 Sections de cycle</div>
+  <div class="nav-item" data-tab="competences" onclick="switchTab('competences')">🎯 Compétences</div>
+  <div class="nav-item" data-tab="apercu" onclick="switchTab('apercu')">👁️ Aperçu du livret</div>
+  <div class="nav-item" data-tab="admin" onclick="switchTab('admin')">⚙️ Administration</div>
+  <div class="sidebar-footer">
+    <button class="btn btn-primary btn-sm" onclick="saveProject()">💾 Sauvegarder projet</button>
+    <button class="btn btn-ghost btn-sm" onclick="loadProject()">📂 Charger projet</button>
+  </div>
+</nav>
 
-                    <!-- Mini-aperçu page de garde -->
-                    <div class="cover-preview-section" v-if="profil.nom || profil.prenom || profil.naissance">
-                        <h3>📄 Aperçu page de garde (minimale)</h3>
-                        <div class="cover-preview-container">
-                            <div class="cover-preview-header">
-                                <span class="cover-title">PROFIL DE L'ÉLÈVE</span>
-                            </div>
-                            <div class="cover-preview-content">
-                                <div class="cover-info-list">
-                                    <div v-if="profil.nom" class="info-line">
-                                        <span class="info-label">Nom:</span> <span class="info-value">{{ profil.nom }}</span>
-                                    </div>
-                                    <div v-if="profil.prenom" class="info-line">
-                                        <span class="info-label">Prénom:</span> <span class="info-value">{{ profil.prenom }}</span>
-                                    </div>
-                                    <div v-if="profil.naissance" class="info-line">
-                                        <span class="info-label">Date de naissance:</span>
-                                        <span class="info-value">{{ profil.naissance }}</span>
-                                    </div>
-                                    <div v-if="mois || annee" class="info-line">
-                                        <span class="info-label">Mois:</span>
-                                        <span class="info-value">{{ mois }} {{ annee }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+<!-- MAIN -->
+<main id="main">
 
-                <!-- Section Sections -->
-                <section class="section-card sections-section" v-if="currentTab === 'sections'">
-                    <h2>Sections de cycle</h2>
-                    <div class="sections-tabs">
-                        <div class="section-tab"
-                             :class="{ active: activeSection === section, completed: sections[section].completed }"
-                             @click="activeSection = section"
-                             v-for="section in sectionKeys"
-                             :key="section">
-                            {{ sectionLabels[section] }}
-                        </div>
-                    </div>
-
-                    <div class="section-content" v-if="activeSection">
-                        <div class="section-field-group" v-for="(label, field) in sectionFields" :key="field">
-                            <label>{{ label }}:</label>
-                            <input type="text" :value="sections[activeSection].fields[field]"
-                                   @input="updateSectionField(activeSection, field, $event.target.value)">
-                        </div>
-
-                        <div class="section-actions">
-                            <button @click="toggleSectionCompleted(activeSection)">
-                                {{ sections[activeSection].completed ? '❌ Décocher' : '✅ Marquer complété' }}
-                            </button>
-                            <button @click="clearSection(activeSection)">
-                                🗑️ Effacer
-                            </button>
-                            <button @click="addBilan(activeSection, 1)">
-                                📝 Ajouter bilan
-                            </button>
-                        </div>
-
-                        <div class="section-photo">
-                            <div>
-                                <label>Photo de la section:</label>
-                                <input type="file" accept="image/*" @change="(e) => handleSectionPhoto(activeSection, e)">
-                            </div>
-                            <img v-if="sections[activeSection].photo" :src="sections[activeSection].photo" alt="Photo de section">
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Section Compétences -->
-                <section class="competences-section" v-if="currentTab === 'competences'">
-                    <h2>Compétences</h2>
-                    <div style="margin-bottom: 16px; padding: 16px; background: #e8f4fd; border-left: 4px solid var(--primary-color); border-radius: var(--radius-sm);">
-                        <p style="color: var(--text-color); margin: 0;">
-                            <strong>ℹ️ Gestion des données :</strong> Utilisez l'onglet <strong>⚙️ Administration</strong> pour ajouter, modifier ou supprimer les domaines, sous-domaines et compétences.
-                        </p>
-                    </div>
-
-                    <div class="competences-container">
-                        <!-- Arbre des domaines -->
-                        <div class="tree-panel">
-                            <h3>Compétences disponibles</h3>
-                            <div class="tree" v-if="domainOrder.length">
-                                <div class="tree-domain" v-for="domain in domainOrder" :key="domain">
-                                    <div class="tree-domain-header" @click="toggleDomain(domain)">
-                                        <span class="expand-icon">{{ expandedDomains[domain] ? '▼' : '▶' }}</span>
-                                        {{ domain }}
-                                    </div>
-                                    <div class="tree-subdomains" v-if="expandedDomains[domain]" v-show="expandedDomains[domain]">
-                                        <div class="tree-subdomain"
-                                             v-for="subdomain in Object.keys(available[domain])"
-                                             :key="subdomain"
-                                             :class="{ selected: selectedSubdomain?.subdomain === subdomain && selectedSubdomain?.domain === domain }"
-                                             @click="selectSubdomain(domain, subdomain)">
-                                            {{ subdomain }}
-                                            <span class="count">({{ available[domain][subdomain].length }})</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-else class="empty">Aucune compétence chargée - Importez un fichier COMPETENCES.txt</div>
-                        </div>
-
-                        <!-- Liste des compétences -->
-                        <div class="competences-panel">
-                            <h3>Compétences du sous-domaine</h3>
-                            <div class="competences-list">
-                                <div class="competence-item"
-                                     v-for="(comp, idx) in currentSubdomainCompetences"
-                                     :key="idx"
-                                     :class="{ selected: selectedCompetences.includes(comp) }"
-                                     @click="toggleCompetence(comp)">
-                                    <input type="checkbox" :checked="selectedCompetences.includes(comp)" disabled>
-                                    {{ comp }}
-                                </div>
-                                <div v-if="!selectedSubdomain" class="empty">
-                                    Sélectionnez un sous-domaine dans l'arbre
-                                </div>
-                            </div>
-                            <button class="btn-primary" :disabled="!selectedCompetences.length" @click="addSelectedToPPT"
-                                    style="margin-top: 16px; width: 100%;">
-                                ➡️ Ajouter aux sélectionnées
-                            </button>
-                        </div>
-
-                        <!-- Compétences sélectionnées -->
-                        <div class="selected-panel">
-                            <h3>Compétences sélectionnées ({{ selectedItems.length }})</h3>
-                            <div class="selected-list">
-                                <div class="selected-item" v-for="(item, index) in selectedItems" :key="`${item.domain}|${item.subdomain}|${item.text}|${item.ts}`">
-                                    <button class="remove-btn" @click="removeSelected(index)">×</button>
-                                    <span class="domain">{{ item.domain.slice(0, 3) }}</span>
-                                    <span class="subdomain">{{ item.subdomain }}</span>
-                                    <span class="text">{{ item.text }}</span>
-                                </div>
-                                <div v-if="!selectedItems.length" class="empty">
-                                    Aucune compétence sélectionnée
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Section Aperçu -->
-                <section class="preview-section" v-if="currentTab === 'preview'">
-                    <h2>Aperçu du livret</h2>
-                    <div class="preview-controls">
-                        <button @click="prevPage" :disabled="currentPageIndex <= 0">
-                            ◀ Page précédente
-                        </button>
-                        <span class="page-info">Page {{ currentPageIndex + 1 }} / {{ totalPages }}</span>
-                        <button @click="nextPage" :disabled="currentPageIndex >= totalPages - 1">
-                            Page suivante ▶
-                        </button>
-                    </div>
-
-                    <div class="preview-container">
-                        <div class="preview-slide" :style="{ borderLeftColor: currentDomainColor }">
-                            <div class="slide-header">
-                                <h3>{{ currentDomain }}</h3>
-                            </div>
-                            <div class="slide-content">
-                                <div v-for="(group, idx) in currentSlide" :key="idx">
-                                    <h4 v-if="group.isHeader" class="subdomain-title">
-                                        {{ group.subdomain }}
-                                    </h4>
-                                    <div v-else class="competence-entry">
-                                        <span class="bullet">•</span>
-                                        <span>{{ profil.prenom }} {{ group.item.text }}</span>
-                                        <span v-if="group.item.ts" class="timestamp">({{ group.item.ts }})</span>
-                                    </div>
-                                </div>
-                                <div v-if="!currentSlide.length" class="empty">
-                                    Aucune compétence pour ce domaine
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="export-buttons">
-                        <button class="btn-export" @click="exportPDF">
-                            📄 Exporter en PDF
-                        </button>
-                    </div>
-                </section>
-
-                <!-- Section Administration -->
-                <section class="admin-section" v-if="currentTab === 'admin'">
-                    <h2>Administration - Domaines et Compétences</h2>
-
-                    <div style="margin-bottom: 16px; padding: 12px; background: #fef9e7; border-left: 4px solid #f5b041; border-radius: var(--radius-sm);">
-                        <p style="color: #7d6608; margin: 0; font-size: 14px;">
-                            <strong>ℹ️ Gestion centralisée :</strong> Tout se fait depuis cet onglet. Les fichiers .txt sont uniquement pour sauvegarde/restauration.
-                        </p>
-                    </div>
-
-                    <div class="admin-actions">
-                        <button class="btn-primary" @click="showAddDomainModal = true">
-                            ➕ Ajouter un domaine
-                        </button>
-                        <button class="btn-primary" @click="showImportModal = true">
-                            📂 Restaurer depuis fichier
-                        </button>
-                        <button class="btn-export" @click="exportTxtFile">
-                            💾 Sauvegarder vers fichier
-                        </button>
-                    </div>
-
-                    <div class="admin-container">
-                        <!-- Liste des domaines -->
-                        <div class="admin-domains-panel">
-                            <h3>Domaines</h3>
-                            <div class="domain-list" v-if="domainOrder.length">
-                                <div class="domain-item" v-for="domain in domainOrder" :key="domain">
-                                    <div class="domain-header">
-                                        <div class="domain-color-indicator" :style="{ backgroundColor: domainColors[domainOrder.indexOf(domain) % domainColors.length] }"></div>
-                                        <span class="domain-name">{{ domain }}</span>
-                                        <span class="domain-count">
-                                            {{ countCompetencesByDomain(domain) }} compétences
-                                        </span>
-                                        <div class="domain-actions">
-                                            <button class="btn-small btn-modify" @click="showEditDomainColor(domain)">
-                                                🎨 Couleur
-                                            </button>
-                                            <button class="btn-small btn-add-subdomain" @click="showAddSubdomainForm(domain)">
-                                                ➕ Sous-domaine
-                                            </button>
-                                            <button class="btn-small btn-delete" @click="confirmDeleteDomain(domain)">
-                                                🗑️ Supprimer
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Liste des sous-domaines -->
-                                    <div class="subdomain-list" v-if="expandedDomains[domain]">
-                                        <div class="subdomain-item" v-for="subdomain in Object.keys(available[domain] || {})" :key="subdomain">
-                                            <div class="subdomain-header">
-                                                <span class="subdomain-name">{{ subdomain }}</span>
-                                                <span class="subdomain-count">
-                                                    {{ (available[domain] || {})[subdomain]?.length || 0 }} compétences
-                                                </span>
-                                                <div class="subdomain-actions">
-                                                    <button class="btn-small btn-modify" @click="confirmEditSubdomain(domain, subdomain)">
-                                                        ✏️ Modifier
-                                                    </button>
-                                                    <button class="btn-small btn-delete" @click="confirmDeleteSubdomain(domain, subdomain)">
-                                                        🗑️ Supprimer
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <!-- Liste des compétences -->
-                                            <div class="competence-list" v-if="expandedSubdomains[[domain, subdomain]]">
-                                                <div class="competence-item" v-for="(comp, idx) in (available[domain] || {})[subdomain] || []" :key="idx">
-                                                    <span class="competence-text">{{ comp }}</span>
-                                                    <button class="btn-small btn-delete" @click="confirmDeleteCompetence(domain, subdomain, idx)">
-                                                        🗑️
-                                                    </button>
-                                                </div>
-                                                <button class="btn-small btn-add-comp" @click="showAddCompetenceForm(domain, subdomain)">
-                                                    ➕ Ajouter compétence
-                                                </button>
-                                            </div>
-                                            <button class="btn-expand-subdomain" @click="toggleSubdomainExpansion(domain, subdomain)">
-                                                {{ expandedSubdomains[[domain, subdomain]] ? 'Masquer' : 'Afficher' }}
-                                                {{ expandedSubdomains[[domain, subdomain]] ? '▼' : '▶' }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-else class="empty">
-                                Aucun domaine enregistré. Cliquez sur "Ajouter un domaine" pour commencer.
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Info message with default data -->
-                    <div v-if="domainOrder.length > 0" style="margin-top: 16px; padding: 12px; background: #e8f8f5; border-left: 4px solid #27ae60; border-radius: var(--radius-sm);">
-                        <p style="color: #145a32; margin: 0; font-size: 14px;">
-                            <strong>✓ Données chargées :</strong> {{ domainOrder.length }} domaine(s) disponible(s). Vous pouvez les modifier ou ajouter de nouveaux domaines via les boutons ci-dessus.
-                        </p>
-                    </div>
-
-                    <!-- Modal Ajouter Domaine -->
-                    <div class="modal-overlay" v-if="showAddDomainModal">
-                        <div class="modal-content">
-                            <h3>Ajouter un domaine</h3>
-                            <div class="form-group">
-                                <label>Nom du domaine</label>
-                                <input type="text" v-model="newDomain.name" placeholder="ex: Vivre en société">
-                            </div>
-                            <div class="form-group">
-                                <label>Couleur</label>
-                                <input type="color" v-model="newDomain.color">
-                            </div>
-                            <div class="modal-buttons">
-                                <button class="btn-primary" @click="addDomain">Ajouter</button>
-                                <button class="btn-small" @click="showAddDomainModal = false">Annuler</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal Modifier Couleur Domaine -->
-                    <div class="modal-overlay" v-if="showEditDomainColorModal">
-                        <div class="modal-content">
-                            <h3>Modifier la couleur du domaine</h3>
-                            <div class="form-group">
-                                <label>Couleur actuelle</label>
-                                <div class="color-preview" :style="{ backgroundColor: domainColorToEdit }"></div>
-                            </div>
-                            <div class="form-group">
-                                <label>Nouvelle couleur</label>
-                                <input type="color" v-model="newDomainColor">
-                            </div>
-                            <div class="modal-buttons">
-                                <button class="btn-primary" @click="updateDomainColor">Enregistrer</button>
-                                <button class="btn-small" @click="showEditDomainColorModal = false">Annuler</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal Ajouter Sous-domaine -->
-                    <div class="modal-overlay" v-if="showAddSubdomainModal">
-                        <div class="modal-content">
-                            <h3>Ajouter un sous-domaine</h3>
-                            <div class="form-group">
-                                <label>Sous-domaine pour: {{ addSubdomainDomain }}</label>
-                            </div>
-                            <div class="form-group">
-                                <label>Nom du sous-domaine</label>
-                                <input type="text" v-model="newSubdomain.name" placeholder="ex: Comprendre et vivre en société">
-                            </div>
-                            <div class="modal-buttons">
-                                <button class="btn-primary" @click="addSubdomain">Ajouter</button>
-                                <button class="btn-small" @click="showAddSubdomainModal = false">Annuler</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal Ajouter Compétence -->
-                    <div class="modal-overlay" v-if="showAddCompetenceModal">
-                        <div class="modal-content">
-                            <h3>Ajouter une compétence</h3>
-                            <div class="form-group">
-                                <label>Domaine: {{ addCompetenceDomain }}</label>
-                            </div>
-                            <div class="form-group">
-                                <label>Sous-domaine: {{ addCompetenceSubdomain }}</label>
-                            </div>
-                            <div class="form-group">
-                                <label>Compétence</label>
-                                <textarea v-model="newCompetence.text" rows="3" placeholder="ex: Je connais les membres de ma famille"></textarea>
-                            </div>
-                            <div class="modal-buttons">
-                                <button class="btn-primary" @click="addCompetence">Ajouter</button>
-                                <button class="btn-small" @click="showAddCompetenceModal = false">Annuler</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal Importer fichier .txt -->
-                    <div class="modal-overlay" v-if="showImportModal">
-                        <div class="modal-content">
-                            <h3>Importer un fichier COMPETENCES.txt</h3>
-                            <div class="import-help">
-                                <p>Ce formulaire permet de restaurer depuis une sauvegarde. Format du fichier:</p>
-                                <ul class="import-format">
-                                    <li><code>##-Domaine Nom</code> - Début d'un domaine</li>
-                                    <li><code>#-Sous-domaine</code> - Début d'un sous-domaine</li>
-                                    <li><code>XX Compétence</code> - Une compétence</li>
-                                </ul>
-                            </div>
-                            <div class="form-group">
-                                <label>Fichier à importer</label>
-                                <input type="file" accept=".txt" @change="handleTxtImport">
-                            </div>
-                            <div class="modal-buttons">
-                                <button class="btn-small" @click="showImportModal = false">Annuler</button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Section vide par défaut -->
-                <section v-if="!['profile', 'sections', 'competences', 'admin', 'preview'].includes(currentTab)" class="section-card">
-                    <h2>Bienvenue</h2>
-                    <p>Sélectionnez un onglet dans la sidebar pour commencer à créer le livret de compétences.</p>
-                </section>
-            </main>
+  <!-- PROFIL -->
+  <div id="pane-profil" class="pane active">
+    <div class="card">
+      <h2>👤 Profil de l'élève</h2>
+      <div class="frow">
+        <div class="fg"><label>Nom *</label><input id="i-nom" type="text" placeholder="Nom de famille" oninput="st.profil.nom=this.value;renderCover()"></div>
+        <div class="fg"><label>Prénom *</label><input id="i-prenom" type="text" placeholder="Prénom" oninput="st.profil.prenom=this.value;renderCover()"></div>
+        <div class="fg"><label>Date de naissance</label><input id="i-naissance" type="text" placeholder="JJ/MM/AAAA" oninput="st.profil.naissance=this.value;renderCover()"></div>
+      </div>
+      <div class="frow">
+        <div class="fg" style="max-width:180px"><label>Mois (horodatage) *</label><input id="i-mois" type="text" placeholder="ex: Février" oninput="st.mois=this.value"></div>
+        <div class="fg" style="max-width:140px"><label>Année *</label><input id="i-annee" type="text" placeholder="ex: 2024" oninput="st.annee=this.value"></div>
+      </div>
+      <div class="fg" style="max-width:250px">
+        <label>Photo de l'élève</label>
+        <div class="photo-box" onclick="document.getElementById('i-photo').click()">
+          <input type="file" id="i-photo" accept="image/*" style="display:none" onchange="handlePhoto(event,'profil')">
+          <div style="font-size:28px">📷</div>
+          <p style="font-size:12px;margin-top:4px">Cliquer pour choisir</p>
+          <img id="photo-prev" style="display:none">
         </div>
+      </div>
     </div>
-
-    <script>
-        const { createApp, ref, reactive, computed } = Vue;
-
-        createApp({
-            setup() {
-                // État de l'application
-                const currentTab = ref('profile');
-                const profil = reactive({
-                    nom: '',
-                    prenom: '',
-                    naissance: ''
-                });
-                const mois = ref('');
-                const annee = ref('');
-                const photoPreview = ref(null);
-
-                const sectionKeys = ['TPS', 'PS', 'MS', 'GS'];
-                const sectionLabels = {
-                    'TPS': 'Toute Petite Section',
-                    'PS': 'Petite Section',
-                    'MS': 'Moyenne Section',
-                    'GS': 'Grande Section'
-                };
-                const sectionFields = {
-                    annee: 'Année scolaire',
-                    ecole: 'École',
-                    enseignants: 'Enseignant(s)'
-                };
-
-                const sections = reactive({
-                    TPS: { completed: false, fields: { annee: '', ecole: '', enseignants: '' }, photo: null, bilan1: '', bilan2: '' },
-                    PS: { completed: false, fields: { annee: '', ecole: '', enseignants: '' }, photo: null, bilan1: '', bilan2: '' },
-                    MS: { completed: false, fields: { annee: '', ecole: '', enseignants: '' }, photo: null, bilan1: '', bilan2: '' },
-                    GS: { completed: false, fields: { annee: '', ecole: '', enseignants: '' }, photo: null, bilan1: '', bilan2: '' }
-                });
-
-                const activeSection = ref('GS');
-
-                // Données par défaut pour les domaines et compétences
-                const defaultData = {
-                    'MOBILISER LE LANGAGE DANS TOUTES SES DIMENSIONS': {
-                        'L’ORAL': [
-                            'écoute les autres',
-                            'parle en petit groupe',
-                            'parle devant la classe entière',
-                            'utilise le « je » pour parler d'il/elle',
-                            'utilise les pronoms (tu, elle, nous…)',
-                            'participe aux échanges de façon constructive'
-                        ],
-                        'L’ÉCRIT': [
-                            'laisse des traces avec les mains ou les doigts',
-                            'associe des personnages à un album',
-                            'sait manipuler un livre correctement',
-                            'écoute une histoire avec intérêt',
-                            'identifie les éléments de l'histoire : personnages, actions, lieux',
-                            'reconnaît différents types d'écrits (recettes, livres, affiches…)'
-                        ]
-                    },
-                    'CONSTRUIRE LES PREMIERS OUTILS POUR STRUCTURER SA PENSÉE': {
-                        'LES NOMBRES': [
-                            'construit ou dénombre une collection jusqu'à 3',
-                            'construit ou dénombre une collection jusqu'à 6',
-                            'construit ou dénombre une collection jusqu'à 10',
-                            'construit une collection équivalente à une autre',
-                            'compare deux collections d'objets',
-                            'reconnaît les constellations du dé'
-                        ],
-                        'LES FORMES ET GRANDEURS': [
-                            'nomme quelques formes planes',
-                            'nomme quelques solides',
-                            'dessine quelques formes géométriques',
-                            'ordonne des objets selon un critère (taille, masse)',
-                            'fait un puzzle à encastrements'
-                        ]
-                    },
-                    'EXPLORER LE MONDE': {
-                        'SE REPÉRER DANS LE TEMPS': [
-                            'se repère dans la matinée',
-                            'se repère dans la journée',
-                            'se repère dans la semaine',
-                            'se repère dans le mois (utilisation d'un calendrier)',
-                            'utilise les mots hier, aujourd'hui, demain, avant, après…'
-                        ],
-                        'SE REPÉRER DANS L'ESPACE': [
-                            'se repère dans la classe',
-                            'se repère dans l'école',
-                            'utilise le vocabulaire spatial sur, sous, dedans…',
-                            'se repère sur un quadrillage'
-                        ],
-                        'LE VIVANT, LES OBJETS ET LA MATIÈRE': [
-                            'désigne et/ou nomme les parties du corps',
-                            'sait dessiner un bonhomme',
-                            'connaît des caractéristiques des animaux',
-                            'applique les règles d'hygiène élémentaires',
-                            'connaît quelques familles d'aliments'
-                        ]
-                    },
-                    'AGIR, S’EXPRIMER, COMPRENDRE À TRAVERS L’ACTIVITÉ PHYSIQUE': {
-                        'ACTIVITÉ PHYSIQUE': [
-                            's'engage dans l'activité',
-                            'explore les possibilités du matériel',
-                            'sait lancer, sauter, courir',
-                            'cherche à s'améliorer',
-                            'enchaîne des actions sur un parcours',
-                            'joue à un jeu collectif en respectant les règles'
-                        ]
-                    },
-                    'AGIR, S’EXPRIMER, COMPRENDRE À TRAVERS L’ACTIVITÉ ARTISTIQUE': {
-                        'PRODUCTIONS PLASTIQUES ET VISUELLES': [
-                            'laisse des traces avec différents outils',
-                            'produit des tracés de plus en plus précis',
-                            'reproduit des motifs graphiques',
-                            'réalise une composition en plan ou en volume',
-                            'dessine avec une intention'
-                        ]
-                    },
-                    'UNIVERS SONORES': {
-                        'EXPRESSION MUSICALE': [
-                            'chante',
-                            'mémorise des gestes de comptines et de jeux de doigts',
-                            'mémorise des paroles de chansons',
-                            'explore des objets sonores'
-                        ]
-                    }
-                };
-
-                // Initialiser avec les données par défaut
-                const available = reactive(defaultData);
-                const domainOrder = Object.keys(defaultData);
-                const expandedDomains = reactive(Object.fromEntries(domainOrder.map(d => [d, false])));
-                const selectedSubdomain = ref(null);
-                const selectedCompetences = ref([]);
-                const selectedItems = ref([]);
-                const pages = reactive({});
-                const itemPageMap = {};
-                const totalPages = ref(0);
-                const currentPageIndex = ref(0);
-
-                const domainColors = [
-                    '#2E86C1', '#AF7AC5', '#48C9B0', '#F5B041', '#EC7063',
-                    '#16A085', '#5D6D7E', '#CA6F1E', '#7D3C98', '#1F618D'
-                ];
-
-                // Admin panel state
-                const showAddDomainModal = ref(false);
-                const showEditDomainColorModal = ref(false);
-                const showAddSubdomainModal = ref(false);
-                const showAddCompetenceModal = ref(false);
-                const showImportModal = ref(false);
-                const domainColorToEdit = ref('');
-                const addSubdomainDomain = ref('');
-                const addCompetenceDomain = ref('');
-                const addCompetenceSubdomain = ref('');
-                const newDomain = reactive({ name: '', color: '#2E86C1' });
-                const newSubdomain = reactive({ name: '' });
-                const newCompetence = reactive({ text: '' });
-                const newDomainColor = ref('#2E86C1');
-                const domainToEdit = ref(null);
-
-                const expandedSubdomains = reactive({});
-
-                // Computed properties
-                const currentDomain = computed(() => {
-                    if (totalPages.value === 0) return '';
-                    const domainPages = Array.from(Object.keys(pages));
-                    return domainPages[currentPageIndex.value % domainPages.length];
-                });
-
-                const currentDomainColor = computed(() => {
-                    if (!currentDomain.value) return domainColors[0];
-                    const index = domainOrder.indexOf(currentDomain.value);
-                    return domainColors[index % domainColors.length];
-                });
-
-                const currentSlide = computed(() => {
-                    if (totalPages.value === 0) return [];
-                    const domainPages = Array.from(Object.keys(pages));
-                    const domain = domainPages[currentPageIndex.value % domainPages.length];
-                    return pages[domain]?.[currentPageIndex.value % (pages[domain]?.length || 1)] || [];
-                });
-
-                const currentSubdomainCompetences = computed(() => {
-                    if (!selectedSubdomain.value) return [];
-                    const { domain, subdomain } = selectedSubdomain.value;
-                    const items = available[domain]?.[subdomain] || [];
-                    return items.filter(comp => !selectedCompetences.value.includes(comp));
-                });
-
-                // Methods
-                const handlePhotoUpload = (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        photoPreview.value = URL.createObjectURL(file);
-                    }
-                };
-
-                const handleSectionPhoto = (section, event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        sections[section].photo = URL.createObjectURL(file);
-                    }
-                };
-
-                const toggleDomain = (domain) => {
-                    expandedDomains[domain] = !expandedDomains[domain];
-                };
-
-                const selectSubdomain = (domain, subdomain) => {
-                    selectedSubdomain.value = { domain, subdomain };
-                };
-
-                const toggleCompetence = (comp) => {
-                    const idx = selectedCompetences.value.indexOf(comp);
-                    if (idx === -1) {
-                        selectedCompetences.value.push(comp);
-                    } else {
-                        selectedCompetences.value.splice(idx, 1);
-                    }
-                };
-
-                const addSelectedToPPT = () => {
-                    if (!selectedSubdomain.value) return;
-                    const { domain, subdomain } = selectedSubdomain.value;
-
-                    for (const comp of selectedCompetences.value) {
-                        const key = `${domain}|${subdomain}|${comp}`;
-                        if (!selectedItems.some(item => `${item.domain}|${item.subdomain}|${item.text}` === key)) {
-                            selectedItems.push({
-                                domain, subdomain, text: comp, ts: `Fevrier ${annee.value}`
-                            });
-                        }
-                    }
-
-                    selectedCompetences.value = [];
-                    computePages();
-                };
-
-                const removeSelected = (idx) => {
-                    selectedItems.splice(idx, 1);
-                    computePages();
-                };
-
-                // Admin panel methods
-                const countCompetencesByDomain = (domain) => {
-                    let count = 0;
-                    const domainData = available[domain] || {};
-                    for (const subdomain in domainData) {
-                        count += domainData[subdomain]?.length || 0;
-                    }
-                    return count;
-                };
-
-                const toggleSubdomainExpansion = (domain, subdomain) => {
-                    const key = `${domain}|${subdomain}`;
-                    expandedSubdomains[key] = !expandedSubdomains[key];
-                };
-
-                const showEditDomainColor = (domain) => {
-                    domainToEdit.value = domain;
-                    const index = domainOrder.indexOf(domain);
-                    domainColorToEdit.value = domainColors[index % domainColors.length];
-                    newDomainColor.value = domainColorToEdit.value;
-                    showEditDomainColorModal.value = true;
-                };
-
-                const updateDomainColor = () => {
-                    if (domainToEdit.value) {
-                        const index = domainOrder.indexOf(domainToEdit.value);
-                        domainColors[index] = newDomainColor.value;
-                        showEditDomainColorModal.value = false;
-                    }
-                };
-
-                const showAddSubdomainForm = (domain) => {
-                    addSubdomainDomain.value = domain;
-                    newSubdomain.name = '';
-                    showAddSubdomainModal.value = true;
-                };
-
-                const confirmEditSubdomain = (domain, subdomain) => {
-                    const newName = prompt(`Nouveau nom pour le sous-domaine "${subdomain}":`);
-                    if (newName && newName.trim()) {
-                        const items = available[domain][subdomain];
-                        delete available[domain][subdomain];
-                        available[domain][newName.trim()] = items;
-                        computePages();
-                    }
-                };
-
-                const confirmDeleteSubdomain = (domain, subdomain) => {
-                    if (confirm(`Supprimer le sous-domaine "${subdomain}" et ses ${available[domain][subdomain]?.length || 0} compétences ?`)) {
-                        delete available[domain][subdomain];
-                        computePages();
-                    }
-                };
-
-                const showAddCompetenceForm = (domain, subdomain) => {
-                    addCompetenceDomain.value = domain;
-                    addCompetenceSubdomain.value = subdomain;
-                    newCompetence.text = '';
-                    showAddCompetenceModal.value = true;
-                };
-
-                const confirmEditDomain = (domain) => {
-                    const newName = prompt(`Nouveau nom pour le domaine "${domain}":`);
-                    if (newName && newName.trim()) {
-                        const newOrder = [...domainOrder];
-                        const index = newOrder.indexOf(domain);
-                        newOrder[index] = newName.trim();
-                        domainOrder.length = 0;
-                        domainOrder.push(...newOrder);
-                        available[newName.trim()] = available[domain];
-                        delete available[domain];
-                    }
-                };
-
-                const confirmDeleteDomain = (domain) => {
-                    if (confirm(`Supprimer le domaine "${domain}" et toutes ses compétences ?`)) {
-                        const index = domainOrder.indexOf(domain);
-                        domainOrder.splice(index, 1);
-                        delete available[domain];
-                        computePages();
-                    }
-                };
-
-                const addDomain = () => {
-                    if (newDomain.name && newDomain.name.trim() && !domainOrder.includes(newDomain.name.trim())) {
-                        const domainName = newDomain.name.trim();
-                        domainOrder.push(domainName);
-                        available[domainName] = {};
-                        expandedDomains[domainName] = false;
-                        showAddDomainModal.value = false;
-                        newDomain.name = '';
-                        newDomain.color = '#2E86C1';
-                    } else if (!newDomain.name.trim()) {
-                        alert('Veuillez entrer un nom de domaine.');
-                    } else {
-                        alert('Ce domaine existe déjà.');
-                    }
-                };
-
-                const addSubdomain = () => {
-                    if (addSubdomainDomain.value && newSubdomain.name && newSubdomain.name.trim()) {
-                        const domain = addSubdomainDomain.value;
-                        const subdomainName = newSubdomain.name.trim();
-                        if (!available[domain][subdomainName]) {
-                            available[domain][subdomainName] = [];
-                            expandedDomains[domain] = true;
-                            computePages();
-                        } else {
-                            alert('Ce sous-domaine existe déjà.');
-                        }
-                    }
-                    newSubdomain.name = '';
-                    showAddSubdomainModal.value = false;
-                };
-
-                const addCompetence = () => {
-                    if (addCompetenceDomain.value && addCompetenceSubdomain.value && newCompetence.text && newCompetence.text.trim()) {
-                        const domain = addCompetenceDomain.value;
-                        const subdomain = addCompetenceSubdomain.value;
-                        const competenceText = newCompetence.text.trim();
-                        if (!available[domain][subdomain].includes(competenceText)) {
-                            available[domain][subdomain].push(competenceText);
-                            computePages();
-                        } else {
-                            alert('Cette compétence existe déjà.');
-                        }
-                    }
-                    newCompetence.text = '';
-                    showAddCompetenceModal.value = false;
-                };
-
-                const confirmDeleteCompetence = (domain, subdomain, idx) => {
-                    if (confirm('Supprimer cette compétence ?')) {
-                        available[domain][subdomain].splice(idx, 1);
-                        computePages();
-                    }
-                };
-
-                const handleTxtImport = async (event) => {
-                    const file = event.target.files[0];
-                    if (!file) return;
-
-                    try {
-                        const content = await file.text();
-                        const { available: newAvailable, domainOrder: newDomainOrder } = parseCompetencesFile(content);
-
-                        for (const domain of newDomainOrder) {
-                            if (!domainOrder.includes(domain)) {
-                                domainOrder.push(domain);
-                                expandedDomains[domain] = false;
-                            }
-                            for (const subdomain in newAvailable[domain]) {
-                                if (!available[domain]) {
-                                    available[domain] = {};
-                                }
-                                if (!available[domain][subdomain]) {
-                                    available[domain][subdomain] = [];
-                                }
-                                for (const competence of newAvailable[domain][subdomain]) {
-                                    if (!available[domain][subdomain].includes(competence)) {
-                                        available[domain][subdomain].push(competence);
-                                    }
-                                }
-                            }
-                        }
-                        computePages();
-                        showImportModal.value = false;
-                        event.target.value = '';
-                    } catch (err) {
-                        alert(`Erreur lors de l'import: ${err.message}`);
-                    }
-                };
-
-                const exportTxtFile = () => {
-                    let content = '';
-                    for (const domain of domainOrder) {
-                        content += `##-Domaine ${domain}\n`;
-                        for (const subdomain in available[domain]) {
-                            content += `#- ${subdomain}\n`;
-                            for (const competence of available[domain][subdomain]) {
-                                content += `XX ${competence}\n`;
-                            }
-                        }
-                    }
-
-                    const blob = new Blob([content], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'COMPETENCES.txt';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                };
-
-                const parseCompetencesFile = (content) => {
-                    const available = {};
-                    const domainOrder = [];
-                    let currentDomain = null;
-                    let currentSubdomain = null;
-
-                    for (const line of content.split('\n')) {
-                        const clean = line.trim().replace(/ | |’/g, '');
-                        if (!clean) continue;
-
-                        if (clean.startsWith('##-Domaine')) {
-                            currentDomain = clean.replace('##-Domaine', '').trim();
-                            if (!available[currentDomain]) {
-                                available[currentDomain] = {};
-                                domainOrder.push(currentDomain);
-                            }
-                            currentSubdomain = null;
-                        } else if (clean.startsWith('#-')) {
-                            currentSubdomain = clean.replace('#-', '').trim();
-                        } else if (clean.startsWith('XX')) {
-                            const comp = clean.replace('XX', '').trim();
-                            if (currentDomain) {
-                                const sd = currentSubdomain || currentDomain;
-                                if (!available[currentDomain][sd]) {
-                                    available[currentDomain][sd] = [];
-                                }
-                                available[currentDomain][sd].push(comp);
-                            }
-                        }
-                    }
-
-                    return { available, domainOrder };
-                };
-
-                // loadCompetencesFile function removed - Use Administration tab
-                const computePages = () => {
-                    const domainPages = {};
-                    let globalIndex = 0;
-                    const PREVIEW_HEIGHT = 600;
-                    const HEADER_HEIGHT = 60;
-
-                    for (const domain of domainOrder) {
-                        const domainItems = {};
-                        for (const item of selectedItems) {
-                            if (item.domain === domain) {
-                                const sd = item.subdomain || domain;
-                                if (!domainItems[sd]) domainItems[sd] = [];
-                                domainItems[sd].push(item);
-                            }
-                        }
-
-                        const pages = [];
-                        let currentPage = [];
-                        let yPx = HEADER_HEIGHT;
-
-                        for (const [subdomain, items] of Object.entries(domainItems)) {
-                            if (yPx + 40 > PREVIEW_HEIGHT && currentPage.length > 0) {
-                                pages.push(currentPage);
-                                currentPage = [];
-                                yPx = HEADER_HEIGHT;
-                            }
-
-                            currentPage.push({ isHeader: true, subdomain });
-                            yPx += 40;
-
-                            for (const item of items) {
-                                if (yPx + 30 > PREVIEW_HEIGHT && currentPage.length > 0) {
-                                    pages.push(currentPage);
-                                    currentPage = [];
-                                    yPx = HEADER_HEIGHT;
-                                }
-
-                                currentPage.push({ isHeader: false, subdomain, item });
-                                yPx += 30;
-                            }
-                        }
-
-                        if (currentPage.length) pages.push(currentPage);
-                        domainPages[domain] = pages;
-                        globalIndex += pages.length;
-                    }
-
-                    Object.assign(pages, domainPages);
-                    totalPages.value = globalIndex;
-                    currentPageIndex.value = 0;
-                };
-
-                const prevPage = () => {
-                    if (currentPageIndex.value > 0) currentPageIndex.value--;
-                };
-
-                const nextPage = () => {
-                    if (currentPageIndex.value < totalPages.value - 1) currentPageIndex.value++;
-                };
-
-                const toggleSectionCompleted = (section) => {
-                    sections[section].completed = !sections[section].completed;
-                };
-
-                const updateSectionField = (section, field, value) => {
-                    sections[section].fields[field] = value;
-                    const allFilled = Object.values(sections[section].fields).every(v => v.trim());
-                    sections[section].completed = allFilled;
-                };
-
-                const clearSection = (section) => {
-                    sections[section].fields = { annee: '', ecole: '', enseignants: '' };
-                    sections[section].completed = false;
-                    sections[section].photo = null;
-                    sections[section].bilan1 = '';
-                    sections[section].bilan2 = '';
-                };
-
-                const addBilan = (section, which) => {
-                    const bilanKey = which === 1 ? 'bilan1' : 'bilan2';
-                    const text = prompt(`Saisir le ${which === 1 ? '1er' : '2e'} bilan pour ${sectionLabels[section]}:`);
-                    if (text !== null) {
-                        sections[section][bilanKey] = text.trim();
-                    }
-                };
-
-                const saveProject = () => {
-                    const project = {
-                        profil, mois: mois.value, annee: annee.value,
-                        sections: Object.fromEntries(Object.entries(sections).map(([k, v]) => [k, { ...v }]))
-                    };
-                    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'livret-projet.json';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                };
-
-                const hexToRgb = (hex) => {
-                    // jsPDF v2.5.1 nécessite un tableau RGB (3 valeurs)
-                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                    if (!result) return [0, 0, 0];
-                    return [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)];
-                };
-
-                const exportPDF = () => {
-                    if (!profil.nom || !profil.prenom || !profil.naissance) {
-                        alert('Veuillez remplir le profil élève avant d\'exporter.');
-                        return;
-                    }
-
-                    console.log('Tentative d\'export PDF...');
-                    console.log('jspdf:', window.jspdf);
-
-                    // jsPDF est chargé via CDN, l'accès dépend de la version
-                    let jsPDFClass = null;
-                    if (window.jspdf && window.jspdf.jsPDF) {
-                        jsPDFClass = window.jspdf.jsPDF;
-                    } else if (window.jspdf && window.jspdf.default && window.jspdf.default.pdf) {
-                        jsPDFClass = window.jspdf.default.pdf;
-                    } else if (window.jspdf && typeof window.jspdf === 'object' && 'jsPDF' in window.jspdf) {
-                        jsPDFClass = window.jspdf.jsPDF;
-                    } else if (typeof window.jspdf === 'function') {
-                        jsPDFClass = window.jspdf;
-                    }
-
-                    console.log('jsPDFClass:', jsPDFClass);
-
-                    if (!jsPDFClass || typeof jsPDFClass !== 'function') {
-                        alert('Erreur: La librairie jsPDF n\'a pas été chargée correctement.');
-                        console.error('jspdf:', window.jspdf);
-                        console.error('jsPDFClass:', jsPDFClass);
-                        return;
-                    }
-
-                    const pdf = new jsPDFClass({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-                    const pageWidth = pdf.internal.pageSize.getWidth();
-                    const pageHeight = pdf.internal.pageSize.getHeight();
-                    const margin = 15;
-
-                    // Page 1: Couverture
-                    pdf.setFillColor(110, 110, 110);
-                    pdf.rect(0, 0, pageWidth, 20, 'F');
-                    pdf.setFontSize(20);
-                    pdf.setTextColor(255, 255, 255);
-                    pdf.text('PROFIL DE L\'ÉLÈVE', pageWidth / 2, 12, { align: 'center' });
-
-                    pdf.setTextColor(0, 0, 0);
-                    pdf.setFontSize(14);
-                    let yPos = 30;
-
-                    if (profil.nom) { pdf.text(`Nom: ${profil.nom}`, margin, yPos); yPos += 7; }
-                    if (profil.prenom) { pdf.text(`Prénom: ${profil.prenom}`, margin, yPos); yPos += 7; }
-                    if (profil.naissance) { pdf.text(`Date de naissance: ${profil.naissance}`, margin, yPos); yPos += 7; }
-                    pdf.text(`Mois: ${mois.value || 'Fevrier'} ${annee.value || '2023'}`, margin, yPos);
-                    yPos += 15;
-
-                    // Sections
-                    pdf.setFontSize(12);
-                    pdf.text('Sections:', margin, yPos);
-                    yPos += 7;
-
-                    for (const section of sectionKeys) {
-                        if (sections[section].completed) {
-                            pdf.setFont(undefined, 'bold');
-                            pdf.text(`${sectionLabels[section]}`, margin, yPos);
-                            yPos += 6;
-                            pdf.setFont(undefined, 'normal');
-                            const fields = sections[section].fields;
-                            if (fields.annee) pdf.text(`  Année: ${fields.annee}`, margin + 5, yPos); yPos += 5;
-                            if (fields.ecole) pdf.text(`  École: ${fields.ecole}`, margin + 5, yPos); yPos += 5;
-                            if (fields.enseignants) pdf.text(`  Enseignant: ${fields.enseignants}`, margin + 5, yPos); yPos += 6;
-                        }
-                    }
-
-                    // Pages domaines
-                    for (const domain of domainOrder) {
-                        pdf.addPage();
-                        const domainPages = pages[domain] || [];
-
-                        for (const [pageIdx, domainPage] of domainPages.entries()) {
-                            if (pageIdx > 0) pdf.addPage();
-
-                            const domainColor = domainColors[domainOrder.indexOf(domain) % domainColors.length];
-                            pdf.setFillColor(domainColor);
-                            pdf.rect(0, 0, pageWidth, 20, 'F');
-                            pdf.setTextColor(255, 255, 255);
-                            pdf.setFontSize(18);
-                            pdf.text(domain, margin, 13);
-
-                            pdf.setTextColor(0, 0, 0);
-                            pdf.setFontSize(12);
-                            yPos = 30;
-
-                            for (const group of domainPage) {
-                                if (group.isHeader) {
-                                    pdf.setFontSize(14);
-                                    pdf.setFont(undefined, 'bold');
-                                    pdf.text(group.subdomain, margin, yPos);
-                                    pdf.setFont(undefined, 'normal');
-                                    yPos += 7;
-                                } else {
-                                    pdf.setFontSize(11);
-                                    const text = `${profil.prenom} ${group.item.text}`;
-                                    const lines = pdf.splitTextToSize(text, pageWidth - 2 * margin);
-                                    for (const line of lines) {
-                                        pdf.text(`• ${line}`, margin + 5, yPos);
-                                        yPos += 5;
-                                    }
-                                    yPos += 3;
-                                }
-                            }
-                        }
-                    }
-
-                    pdf.save(`${profil.prenom}_${profil.nom}_livret.pdf`);
-                };
-
-                return {
-                    currentTab, profil, mois, annee, photoPreview,
-                    sectionKeys, sectionLabels, sectionFields, sections, activeSection,
-                    available, domainOrder, expandedDomains, selectedSubdomain,
-                    selectedCompetences, selectedItems, pages, totalPages, currentPageIndex,
-                    currentDomain, currentDomainColor, currentSlide,
-                    currentSubdomainCompetences,
-                    showAddDomainModal, showEditDomainColorModal, showAddSubdomainModal,
-                    showAddCompetenceModal, showImportModal,
-                    domainColorToEdit, addSubdomainDomain, addCompetenceDomain, addCompetenceSubdomain,
-                    newDomain, newSubdomain, newCompetence, newDomainColor, domainToEdit,
-                    expandedSubdomains,
-                                    handlePhotoUpload, handleSectionPhoto, toggleDomain, selectSubdomain,
-                    toggleCompetence, addSelectedToPPT, removeSelected,
-                    computePages, prevPage, nextPage,
-                    toggleSectionCompleted, updateSectionField, clearSection, addBilan,
-                    saveProject, exportPDF,
-                    countCompetencesByDomain, toggleSubdomainExpansion,
-                    showEditDomainColor, updateDomainColor,
-                    showAddSubdomainForm, confirmEditSubdomain, confirmDeleteSubdomain,
-                    showAddCompetenceForm, confirmEditDomain, confirmDeleteDomain,
-                    addDomain, addSubdomain, addCompetence, confirmDeleteCompetence,
-                    handleTxtImport, exportTxtFile
-                };
-            }
-        }).mount('#app');
-    </script>
+    <div class="card">
+      <h3>📄 Aperçu page de garde</h3>
+      <canvas id="cover-canvas" height="210"></canvas>
+    </div>
+  </div>
+
+  <!-- SECTIONS -->
+  <div id="pane-sections" class="pane">
+    <div class="card">
+      <h2>📋 Sections de cycle</h2>
+      <div class="stabs">
+        <div class="stab active" onclick="switchSec('TPS')">TPS</div>
+        <div class="stab" onclick="switchSec('PS')">PS</div>
+        <div class="stab" onclick="switchSec('MS')">MS</div>
+        <div class="stab" onclick="switchSec('GS')">GS</div>
+      </div>
+      <div id="sec-contents"></div>
+    </div>
+  </div>
+
+  <!-- COMPETENCES -->
+  <div id="pane-competences" class="pane">
+    <div class="card" id="import-card">
+      <h2>🎯 Importer les compétences</h2>
+      <div class="banner">Importez un fichier COMPETENCES.txt pour charger la structure. Une fois chargée, elle est mémorisée. Vous pouvez aussi gérer les compétences via ⚙️ Administration.</div>
+      <div class="drop-zone" id="drop-zone"
+        onclick="document.getElementById('i-comp-file').click()"
+        ondragover="event.preventDefault();this.classList.add('over')"
+        ondragleave="this.classList.remove('over')"
+        ondrop="dropComp(event)">
+        <input type="file" id="i-comp-file" accept=".txt" style="display:none" onchange="loadCompFile(event)">
+        <div style="font-size:36px">📄</div>
+        <p><strong>Cliquer ou glisser-déposer un fichier COMPETENCES.txt</strong></p>
+        <p>Format : ##-Domaine Nom &nbsp;/&nbsp; #- Sous-domaine &nbsp;/&nbsp; XX Compétence</p>
+      </div>
+      <div id="import-status" style="margin-top:8px;font-size:13px"></div>
+    </div>
+    <div class="card">
+      <div style="background:#f0f8ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:600;color:#1d4ed8">🗓️ Horodatage des acquisitions</span>
+        <div class="fg" style="min-width:120px;flex:0 1 140px">
+          <label>Mois</label>
+          <input id="c-mois" type="text" placeholder="ex: Janvier" oninput="st.mois=this.value;document.getElementById('i-mois').value=this.value;updateTsPreview()">
+        </div>
+        <div class="fg" style="min-width:80px;flex:0 1 100px">
+          <label>Année</label>
+          <input id="c-annee" type="text" placeholder="ex: 2026" oninput="st.annee=this.value;document.getElementById('i-annee').value=this.value;updateTsPreview()">
+        </div>
+        <span id="ts-preview" style="font-size:12px;color:#555;font-style:italic"></span>
+      </div>
+      <div class="comp3">
+        <div>
+          <h3>Compétences disponibles</h3>
+          <div class="tree-panel" id="comp-tree"></div>
+        </div>
+        <div>
+          <h3>Compétences du sous-domaine <span id="sub-title" style="color:var(--primary);font-weight:400"></span></h3>
+          <div id="comp-placeholder" style="padding:14px;font-size:12px;color:#888">Sélectionnez un sous-domaine dans l'arbre</div>
+          <div class="mid-panel" id="comp-list" style="display:none"></div>
+          <div id="comp-actions" class="bgrp" style="display:none">
+            <button class="btn btn-primary btn-sm" onclick="addCheckedComps()">➕ Ajouter la sélection</button>
+            <button class="btn btn-ghost btn-sm" onclick="checkAllComps()">☑ Tout</button>
+          </div>
+        </div>
+        <div>
+          <h3>Sélectionnées (<span id="sel-count">0</span>)</h3>
+          <div class="sel-panel" id="sel-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APERCU -->
+  <div id="pane-apercu" class="pane">
+    <div class="card">
+      <h2>👁️ Aperçu du livret</h2>
+      <div class="preview-wrap">
+        <div style="flex:1;min-width:0">
+          <canvas id="preview-canvas" width="820" height="490"></canvas>
+          <div class="page-nav">
+            <button onclick="prevPage()">◀ Précédent</button>
+            <span id="page-info">Aucune page</span>
+            <button onclick="nextPage()">▶ Suivant</button>
+          </div>
+        </div>
+        <div class="preview-tools">
+          <h3>🖼️ Images</h3>
+          <p style="font-size:11px;color:#888;margin-bottom:10px">Clic gauche = déplacer<br>Poignée ↘ = redimensionner<br>Clic droit = supprimer</p>
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('i-page-img').click()">Ajouter image</button>
+          <input type="file" id="i-page-img" accept="image/*" style="display:none" onchange="addPageImg(event)">
+          <button class="btn btn-danger btn-sm" onclick="deleteSelImg()">Supprimer sélection</button>
+          <hr style="margin:12px 0">
+          <h3>📄 Export</h3>
+          <button class="btn btn-success btn-sm" onclick="exportPDF()">Exporter PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="pane-admin" class="pane">
+    <div class="card">
+      <h2>⚙️ Administration des compétences</h2>
+      <div class="banner">Les modifications sont enregistrées automatiquement dans le navigateur.</div>
+      <div class="bgrp" style="margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openModal('m-add-domain')">➕ Nouveau domaine</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('i-restore').click()">📂 Restaurer .txt</button>
+        <input type="file" id="i-restore" accept=".txt" style="display:none" onchange="loadCompFile(event)">
+        <button class="btn btn-ghost" onclick="exportTxt()">💾 Exporter .txt</button>
+      </div>
+      <div id="admin-list"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODALS -->
+<div class="overlay" id="m-add-domain" onclick="if(event.target===this)closeModal('m-add-domain')">
+  <div class="modal">
+    <h3>Nouveau domaine</h3>
+    <div class="fg" style="margin-bottom:10px"><label>Nom du domaine</label><input id="m-dn" type="text" placeholder="ex: MOBILISER LE LANGAGE"></div>
+    <div class="fg" style="margin-bottom:10px"><label>Couleur</label><input id="m-dc" type="color" value="#2E86C1"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-add-domain')">Annuler</button>
+      <button class="btn btn-primary" onclick="doAddDomain()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-add-sub" onclick="if(event.target===this)closeModal('m-add-sub')">
+  <div class="modal">
+    <h3>Nouveau sous-domaine</h3>
+    <div class="fg" style="margin-bottom:10px"><label>Nom</label><input id="m-sn" type="text" placeholder="ex: L'ORAL"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-add-sub')">Annuler</button>
+      <button class="btn btn-primary" onclick="doAddSub()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-add-comp" onclick="if(event.target===this)closeModal('m-add-comp')">
+  <div class="modal">
+    <h3>Nouvelle compétence</h3>
+    <div class="fg" style="margin-bottom:10px"><label>Texte</label><textarea id="m-ct" rows="3" placeholder="ex: écoute les autres"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-add-comp')">Annuler</button>
+      <button class="btn btn-primary" onclick="doAddComp()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="m-bilan" onclick="if(event.target===this)closeModal('m-bilan')">
+  <div class="modal">
+    <h3 id="m-bilan-title">Bilan</h3>
+    <div class="fg" style="margin-bottom:10px"><label>Texte</label><textarea id="m-bt" rows="5" placeholder="Saisir le bilan..."></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-bilan')">Annuler</button>
+      <button class="btn btn-primary" onclick="doBilan()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const DCOLORS=['#2E86C1','#AF7AC5','#48C9B0','#F5B041','#EC7063','#16A085','#5D6D7E','#CA6F1E','#7D3C98','#1F618D'];
+const SKEYS=['TPS','PS','MS','GS'];
+const SLABELS={TPS:'Toute Petite Section',PS:'Petite Section',MS:'Moyenne Section',GS:'Grande Section'};
+const BCOLORS=['#dbeafe:#1d4ed8','#f3e8ff:#7c3aed','#d1fae5:#059669','#fef3c7:#d97706','#fee2e2:#dc2626','#cffafe:#0891b2'];
+
+// ============================================================
+// STATE
+// ============================================================
+const st={
+  profil:{nom:'',prenom:'',naissance:'',photoDataUrl:null},
+  mois:'',annee:'',
+  sections:Object.fromEntries(SKEYS.map(k=>[k,{completed:false,fields:{annee:'',ecole:'',enseignants:''},photoDataUrl:null,bilan1:'',bilan2:''}])),
+  available:{},   // domain -> {sub -> [comps]}
+  domainOrder:[],
+  domainColors:{},
+  selectedItems:[], // [{domain,subdomain,text,ts,batchId}]
+  pageImages:{},    // "domain§pi" -> [{dataUrl,x,y,w,h}]
+  curPage:0,
+};
+let pages=[];           // [{domain,pi}]
+let dpMap={};           // domain -> [[{isH,sub,item}]]
+let batchN=0;
+let curSub=null,curDom=null; // currently selected subdomain
+let selImgKey=null,selImgIdx=null; // selected image on canvas
+let _pendSub=null,_pendCompD=null,_pendCompS=null,_pendBilanK=null,_pendBilanW=null;
+
+// ============================================================
+// PERSISTENCE
+// ============================================================
+const LS_C='livret_comps',LS_P='livret_proj';
+
+function saveComps(){
+  try{localStorage.setItem(LS_C,JSON.stringify({available:st.available,domainOrder:st.domainOrder,domainColors:st.domainColors}));}catch(e){}
+}
+function loadCompsLS(){
+  try{
+    const r=localStorage.getItem(LS_C);
+    if(!r)return false;
+    const d=JSON.parse(r);
+    if(d.domainOrder&&d.domainOrder.length>0){
+      st.available=d.available||{};
+      st.domainOrder=d.domainOrder||[];
+      st.domainColors=d.domainColors||{};
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+function saveProject(){
+  const data={...st,_imgCache:undefined};
+  // strip _img cache from pageImages
+  const cleanImgs={};
+  for(const[k,arr]of Object.entries(st.pageImages)){
+    cleanImgs[k]=arr.map(({dataUrl,x,y,w,h})=>({dataUrl,x,y,w,h}));
+  }
+  data.pageImages=cleanImgs;
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`${st.profil.prenom||'eleve'}_${st.profil.nom||'projet'}_livret.json`;
+  a.click();URL.revokeObjectURL(url);
+}
+function loadProject(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json';
+  inp.onchange=async e=>{
+    const f=e.target.files[0];if(!f)return;
+    try{
+      const data=JSON.parse(await f.text());
+      Object.assign(st,data);
+      // Reload img elements
+      for(const arr of Object.values(st.pageImages)){
+        for(const img of arr){img._el=null;mkImgEl(img);}
+      }
+      restoreUI();rebuildPages();renderAll();
+      alert('Projet chargé !');
+    }catch(ex){alert('Erreur: '+ex.message);}
+  };
+  inp.click();
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function switchTab(tab){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('pane-'+tab).classList.add('active');
+  document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
+  if(tab==='competences'){
+    document.getElementById('import-card').style.display=st.domainOrder.length?'none':'block';
+    // Sync mois/annee fields from profile
+    const cm=document.getElementById('c-mois');const ca=document.getElementById('c-annee');
+    if(cm)cm.value=st.mois||'';if(ca)ca.value=st.annee||'';
+    updateTsPreview();
+    renderTree();renderSelList();
+  }
+  if(tab==='apercu'){rebuildPages();renderPreview();}
+  if(tab==='admin')renderAdminList();
+  if(tab==='profil')renderCover();
+  if(tab==='sections')buildSecUI();
+}
+
+// ============================================================
+// TIMESTAMP PREVIEW
+// ============================================================
+function updateTsPreview(){
+  const m=st.mois.trim(),a=st.annee.trim();
+  const el=document.getElementById('ts-preview');
+  if(!el)return;
+  el.textContent=(m||a)?`Aperçu : • ${st.profil.prenom||'Élève'} compétence acquise (${[m,a].filter(Boolean).join(' ')})`:'' ;
+}
+
+// ============================================================
+// COVER CANVAS
+// ============================================================
+function renderCover(){
+  const c=document.getElementById('cover-canvas');
+  if(!c)return;
+  const W=c.clientWidth||800;c.width=W;
+  const H=c.height=210;
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  // Header
+  ctx.fillStyle='#6e6e6e';ctx.fillRect(0,0,W,46);
+  ctx.fillStyle='#fff';ctx.font='bold 16px system-ui,sans-serif';ctx.textAlign='center';
+  ctx.fillText("PROFIL DE L'ÉLÈVE",W/2,28);
+  // Olive bg
+  const bgW=Math.min(400,W*0.52);
+  ctx.fillStyle='#6B8E23';roundRect(ctx,14,56,bgW,106,6);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 13px system-ui,sans-serif';ctx.textAlign='left';
+  let ty=78;
+  if(st.profil.nom){ctx.fillText('Nom : '+st.profil.nom,24,ty);ty+=22;}
+  if(st.profil.prenom){ctx.fillText('Prénom : '+st.profil.prenom,24,ty);ty+=22;}
+  if(st.profil.naissance){ctx.fillText('Né(e) le : '+st.profil.naissance,24,ty);ty+=22;}
+  if(st.mois||st.annee){ctx.fillText((st.mois?st.mois+' ':'')+st.annee,24,ty);}
+  // Photo
+  if(st.profil.photoDataUrl){
+    const img=new Image();
+    img.onload=()=>{
+      const ms=Math.min(110,H-60);const r=img.width/img.height;
+      let pw=ms,ph=ms;if(r>1)ph=Math.round(pw/r);else pw=Math.round(ph*r);
+      ctx.save();roundRect(ctx,W-pw-16,58,pw,ph,5);ctx.clip();
+      ctx.drawImage(img,W-pw-16,58,pw,ph);ctx.restore();
+    };img.src=st.profil.photoDataUrl;
+  }
+  // Sections badges
+  const bx=bgW+28,bw=(W-bx-14)/4;
+  ctx.font='bold 10px system-ui,sans-serif';
+  SKEYS.forEach((k,i)=>{
+    const x=bx+i*(bw+3);
+    const done=st.sections[k].completed;
+    ctx.fillStyle=done?'#d1fae5':'#f3f4f6';
+    roundRect(ctx,x,60,bw,36,4);ctx.fill();
+    ctx.fillStyle=done?'#059669':'#888';ctx.textAlign='center';
+    ctx.fillText(k,x+bw/2,80);
+    ctx.fillText(done?'✓':'–',x+bw/2,92);
+  });
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  if(ctx.roundRect){ctx.roundRect(x,y,w,h,r);}
+  else{ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();}
+}
+
+// ============================================================
+// PROFILE PHOTO
+// ============================================================
+function handlePhoto(e,target){
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    if(target==='profil'){
+      st.profil.photoDataUrl=ev.target.result;
+      const p=document.getElementById('photo-prev');p.src=ev.target.result;p.style.display='block';
+      renderCover();
+    } else {
+      st.sections[target].photoDataUrl=ev.target.result;
+      buildSecUI();switchSec(target);
+    }
+  };rd.readAsDataURL(f);
+}
+
+// ============================================================
+// SECTIONS UI
+// ============================================================
+function buildSecUI(){
+  const c=document.getElementById('sec-contents');c.innerHTML='';
+  SKEYS.forEach(k=>{
+    const s=st.sections[k];
+    const div=document.createElement('div');
+    div.className='scontent'+(k==='TPS'?' active':'');
+    div.id='sc-'+k;
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600">
+          <input type="checkbox" id="chk-${k}" ${s.completed?'checked':''} onchange="secCompleted('${k}',this.checked)">
+          Section complétée
+        </label>
+        <span class="${s.completed?'dot-ok':'dot-no'}"></span>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Année scolaire</label><input type="text" value="${s.fields.annee}" placeholder="2024-2025" oninput="secField('${k}','annee',this.value)"></div>
+        <div class="fg"><label>École</label><input type="text" value="${s.fields.ecole}" placeholder="Nom de l'école" oninput="secField('${k}','ecole',this.value)"></div>
+        <div class="fg"><label>Enseignant(s)</label><input type="text" value="${s.fields.enseignants}" placeholder="Nom" oninput="secField('${k}','enseignants',this.value)"></div>
+      </div>
+      <div class="fg" style="max-width:220px;margin-bottom:12px">
+        <label>Photo de section</label>
+        <div class="photo-box" onclick="document.getElementById('sp-${k}').click()">
+          <input type="file" id="sp-${k}" accept="image/*" style="display:none" onchange="handlePhoto(event,'${k}')">
+          <div style="font-size:22px">📷</div>
+          ${s.photoDataUrl?`<img src="${s.photoDataUrl}" style="max-width:120px;max-height:100px;border-radius:4px;margin-top:6px">`:'<p style="font-size:11px;margin-top:4px">Importer</p>'}
+        </div>
+      </div>
+      <div class="bgrp">
+        <button class="btn btn-success btn-sm" onclick="secCompleted('${k}',true)">✓ Complétée</button>
+        <button class="btn btn-ghost btn-sm" onclick="secCompleted('${k}',false)">✗ Décocher</button>
+        <button class="btn btn-danger btn-sm" onclick="clearSec('${k}')">🗑️ Effacer</button>
+        <button class="btn btn-primary btn-sm" onclick="openBilanM('${k}',1)">📝 Bilan 1</button>
+        <button class="btn btn-primary btn-sm" onclick="openBilanM('${k}',2)">📝 Bilan 2</button>
+      </div>
+      ${s.bilan1?`<div class="banner" style="margin-top:10px"><strong>Bilan 1 :</strong> ${s.bilan1}</div>`:''}
+      ${s.bilan2?`<div class="banner" style="margin-top:6px"><strong>Bilan 2 :</strong> ${s.bilan2}</div>`:''}
+    `;
+    c.appendChild(div);
+  });
+}
+function switchSec(k){
+  document.querySelectorAll('.stab').forEach((t,i)=>t.classList.toggle('active',SKEYS[i]===k));
+  document.querySelectorAll('.scontent').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('sc-'+k);if(el)el.classList.add('active');
+}
+function secField(k,f,v){st.sections[k].fields[f]=v;autoCompleteCheck(k);renderCover();}
+function autoCompleteCheck(k){
+  const done=Object.values(st.sections[k].fields).every(v=>v.trim());
+  if(done){st.sections[k].completed=true;const cb=document.getElementById('chk-'+k);if(cb)cb.checked=true;}
+}
+function secCompleted(k,val){
+  st.sections[k].completed=val;
+  buildSecUI();switchSec(k);renderCover();
+}
+function clearSec(k){
+  if(!confirm('Effacer la section '+k+' ?'))return;
+  st.sections[k]={completed:false,fields:{annee:'',ecole:'',enseignants:''},photoDataUrl:null,bilan1:'',bilan2:''};
+  buildSecUI();switchSec(k);renderCover();
+}
+function openBilanM(k,w){
+  _pendBilanK=k;_pendBilanW=w;
+  document.getElementById('m-bilan-title').textContent=`${w===1?'1er':'2e'} bilan — ${SLABELS[k]}`;
+  document.getElementById('m-bt').value=st.sections[k]['bilan'+w]||'';
+  openModal('m-bilan');
+}
+function doBilan(){
+  const t=document.getElementById('m-bt').value.trim();
+  if(_pendBilanK){st.sections[_pendBilanK]['bilan'+_pendBilanW]=t;buildSecUI();switchSec(_pendBilanK);}
+  closeModal('m-bilan');
+}
+
+// ============================================================
+// COMPETENCES FILE IMPORT
+// ============================================================
+function dropComp(e){
+  e.preventDefault();document.getElementById('drop-zone').classList.remove('over');
+  const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.txt'))parseComp(f);
+}
+function loadCompFile(e){const f=e.target.files[0];if(f)parseComp(f);e.target.value='';}
+
+async function parseComp(file){
+  try{
+    const text=await file.text();
+    const r=parseTxt(text);
+    if(r.domainOrder.length===0){alert('Aucun domaine trouvé. Vérifiez le format.');return;}
+    st.available=r.available;st.domainOrder=r.domainOrder;st.domainColors=r.domainColors;
+    saveComps();
+    document.getElementById('import-status').innerHTML='<span style="color:green">✅ '+r.domainOrder.length+' domaine(s) chargé(s)</span>';
+    document.getElementById('import-card').style.display='none';
+    renderTree();renderAdminList();
+  }catch(ex){alert('Erreur : '+ex.message);}
+}
+
+function parseTxt(text){
+  const available={},domainOrder=[],domainColors={};
+  let d=null,s=null,ci=0;
+  for(const raw of text.split('\n')){
+    const line=raw.trim().replace(/ /g,' ').replace(/ /g,' ').replace(/’/g,"'");
+    if(!line)continue;
+    if(line.startsWith('##-Domaine')){
+      d=line.slice(10).trim();
+      if(!available[d]){available[d]={};domainOrder.push(d);domainColors[d]=DCOLORS[ci%DCOLORS.length];ci++;}
+      s=null;
+    }else if(line.startsWith('#-')){
+      let sub=line.slice(2).trim();
+      if(sub.toLowerCase().startsWith('sous-domaine:'))sub=sub.slice(13).trim();
+      s=sub;
+    }else if(line.startsWith('XX')&&d){
+      const c=line.slice(2).trim();if(!c)continue;
+      const key=s||d;
+      if(!available[d][key])available[d][key]=[];
+      available[d][key].push(c);
+    }
+  }
+  return{available,domainOrder,domainColors};
+}
+
+function exportTxt(){
+  let out='';
+  for(const d of st.domainOrder){
+    out+=`##-Domaine ${d}\n`;
+    for(const[s,cs]of Object.entries(st.available[d]||{})){out+=`#- ${s}\n`;cs.forEach(c=>out+=`XX ${c}\n`);}
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([out],{type:'text/plain'}));
+  a.download='COMPETENCES.txt';a.click();
+}
+
+// ============================================================
+// COMPETENCES TREE
+// ============================================================
+function renderTree(){
+  const t=document.getElementById('comp-tree');if(!t)return;
+  t.innerHTML='';
+  if(!st.domainOrder.length){t.innerHTML='<div style="padding:14px;color:#888;font-size:12px">Aucune compétence chargée</div>';return;}
+  st.domainOrder.forEach((d,di)=>{
+    const color=st.domainColors[d]||DCOLORS[0];
+    const wrap=document.createElement('div');
+    const hdr=document.createElement('div');
+    hdr.className='domain-hdr';hdr.style.borderLeftColor=color;
+    hdr.innerHTML=`<span id="tt${di}" style="font-size:10px">▶</span><span>${d}</span>`;
+    hdr.onclick=()=>{
+      const sl=document.getElementById('sl'+di);
+      const open=sl.classList.toggle('open');
+      document.getElementById('tt'+di).textContent=open?'▼':'▶';
+    };
+    const sl=document.createElement('div');sl.className='sub-list';sl.id='sl'+di;
+    Object.keys(st.available[d]||{}).forEach(sub=>{
+      const it=document.createElement('div');
+      it.className='sub-item';
+      it.textContent=`${sub} (${(st.available[d][sub]||[]).length})`;
+      it.id=`si_${di}_${eid(sub)}`;
+      it.onclick=()=>selectSub(d,sub,di);
+      sl.appendChild(it);
+    });
+    wrap.appendChild(hdr);wrap.appendChild(sl);t.appendChild(wrap);
+  });
+}
+function eid(s){return btoa(unescape(encodeURIComponent(s))).replace(/[^a-zA-Z0-9]/g,'').slice(0,20);}
+function selectSub(d,sub,di){
+  document.querySelectorAll('.sub-item').forEach(x=>x.classList.remove('active'));
+  document.getElementById(`si_${di}_${eid(sub)}`)?.classList.add('active');
+  curDom=d;curSub=sub;
+  document.getElementById('sub-title').textContent='— '+sub;
+  renderCompList(d,sub);
+}
+
+function renderCompList(d,sub){
+  const comps=((st.available[d]||{})[sub])||[];
+  document.getElementById('comp-placeholder').style.display='none';
+  const cl=document.getElementById('comp-list');cl.style.display='block';
+  document.getElementById('comp-actions').style.display='flex';
+  cl.innerHTML='';
+  comps.forEach((c,i)=>{
+    const added=st.selectedItems.some(x=>x.domain===d&&x.subdomain===sub&&x.text===c);
+    const row=document.createElement('div');row.className='comp-row'+(added?' done':'');
+    row.innerHTML=`<input type="checkbox" data-c="${encodeURIComponent(c)}" ${added?'disabled checked':''}><span>${c}</span>`;
+    cl.appendChild(row);
+  });
+}
+function checkAllComps(){document.querySelectorAll('#comp-list input[type=checkbox]:not(:disabled)').forEach(x=>x.checked=true);}
+function addCheckedComps(){
+  if(!st.mois.trim()||!st.annee.trim()){alert('Remplissez Mois et Année dans le profil.');return;}
+  if(!curDom||!curSub){alert('Sélectionnez un sous-domaine.');return;}
+  const ts=st.mois.trim()+' '+st.annee.trim();
+  batchN++;let n=0;
+  document.querySelectorAll('#comp-list input[type=checkbox]:checked:not(:disabled)').forEach(cb=>{
+    const c=decodeURIComponent(cb.getAttribute('data-c'));
+    if(!st.selectedItems.some(x=>x.domain===curDom&&x.subdomain===curSub&&x.text===c)){
+      st.selectedItems.push({domain:curDom,subdomain:curSub,text:c,ts,batchId:batchN});n++;
+    }
+  });
+  if(n){renderCompList(curDom,curSub);renderSelList();rebuildPages();}
+}
+
+function renderSelList(){
+  const el=document.getElementById('sel-list');
+  const cnt=document.getElementById('sel-count');
+  if(!el)return;cnt.textContent=st.selectedItems.length;el.innerHTML='';
+  st.selectedItems.forEach((item,idx)=>{
+    const ci=st.domainOrder.indexOf(item.domain)%BCOLORS.length;
+    const [bg,col]=(BCOLORS[ci]||BCOLORS[0]).split(':');
+    const row=document.createElement('div');row.className='sel-row';
+    row.innerHTML=`
+      <span class="badge" style="background:${bg};color:${col}">${item.domain.slice(0,4)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:#666">${item.subdomain}</div>
+        <div>${item.text}</div>
+        <div style="font-size:10px;color:#999">${item.ts||''}</div>
+      </div>
+      <span class="rm" onclick="rmComp(${idx})">×</span>`;
+    el.appendChild(row);
+  });
+}
+function rmComp(idx){
+  st.selectedItems.splice(idx,1);
+  renderSelList();
+  if(curDom&&curSub)renderCompList(curDom,curSub);
+  rebuildPages();
+  if(st.currentTab==='apercu')renderPreview();
+}
+
+// ============================================================
+// PAGE LAYOUT
+// ============================================================
+const HDR=50,CTOP=64,CBOTTOM=20,SUBH=26,LINEH=21,TMARGIN=24;
+
+function rebuildPages(){
+  const c=document.getElementById('preview-canvas');
+  const H=c?c.height:490;const contentH=H-CTOP-CBOTTOM;
+  dpMap={};pages=[];
+  const byD={};
+  st.domainOrder.forEach(d=>{byD[d]={};});
+  st.selectedItems.forEach(it=>{
+    if(!byD[it.domain])byD[it.domain]={};
+    if(!byD[it.domain][it.subdomain])byD[it.domain][it.subdomain]=[];
+    byD[it.domain][it.subdomain].push(it);
+  });
+  st.domainOrder.forEach(d=>{
+    const sm=byD[d]||{};if(!Object.keys(sm).length)return;
+    const dPages=[];let pg=[],y=CTOP;
+    const flush=(cs)=>{if(pg.length)dPages.push(pg);pg=[];y=CTOP;if(cs){pg.push({isH:true,sub:cs,item:null});y+=SUBH;}};
+    Object.entries(sm).forEach(([sub,items])=>{
+      if(y+SUBH>CTOP+contentH&&pg.length)flush();
+      pg.push({isH:true,sub,item:null});y+=SUBH;
+      items.forEach(it=>{
+        const lines=Math.max(1,Math.ceil(it.text.length/55));
+        const need=lines*LINEH+(it.ts?LINEH:0)+5;
+        if(y+need>CTOP+contentH&&pg.length)flush(sub);
+        pg.push({isH:false,sub,item:it});y+=need;
+      });
+    });
+    if(pg.length)dPages.push(pg);
+    dpMap[d]=dPages;
+    dPages.forEach((_,pi)=>pages.push({domain:d,pi}));
+  });
+  st.curPage=Math.min(st.curPage,Math.max(0,pages.length-1));
+  updatePageInfo();
+}
+
+function updatePageInfo(){
+  const el=document.getElementById('page-info');if(!el)return;
+  el.textContent=pages.length?`Page ${st.curPage+1} / ${pages.length}`:'Aucune page — ajoutez des compétences';
+}
+
+// ============================================================
+// PREVIEW CANVAS
+// ============================================================
+function renderPreview(){
+  const c=document.getElementById('preview-canvas');if(!c)return;
+  const ctx=c.getContext('2d');const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#f8f9fa';ctx.fillRect(0,0,W,H);
+  if(!pages.length){
+    ctx.fillStyle='#aaa';ctx.font='14px system-ui';ctx.textAlign='center';
+    ctx.fillText('Aucune page — ajoutez des compétences depuis l\'onglet Compétences',W/2,H/2);
+    return;
+  }
+  const{domain,pi}=pages[Math.min(st.curPage,pages.length-1)];
+  const page=(dpMap[domain]||[])[pi]||[];
+  const color=st.domainColors[domain]||DCOLORS[0];
+  // White page
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+  // Domain header
+  ctx.fillStyle=color;ctx.fillRect(0,0,W,HDR);
+  ctx.fillStyle='#fff';ctx.font='bold 15px system-ui';ctx.textAlign='left';
+  ctx.fillText(domain,TMARGIN,HDR/2+6);
+  // Content
+  let y=CTOP;const maxW=W-TMARGIN*2-8;
+  ctx.textAlign='left';
+  page.forEach(({isH,sub,item})=>{
+    if(isH){
+      ctx.fillStyle=color;ctx.font='bold 12px system-ui';
+      ctx.fillText(sub,TMARGIN,y+15);
+      ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1;
+      ctx.moveTo(TMARGIN,y+18);ctx.lineTo(TMARGIN+ctx.measureText(sub).width,y+18);ctx.stroke();
+      y+=SUBH;
+    }else{
+      const pr=st.profil.prenom?st.profil.prenom+' ':'';
+      const full=`• ${pr}${item.text}`;
+      const wrapped=wrapTxt(ctx,full,maxW,12);
+      ctx.font='12px system-ui';ctx.fillStyle='#222';
+      wrapped.forEach((ln,li)=>{ctx.fillText(li===0?ln:'  '+ln,TMARGIN+8,y+LINEH*(li+1)-4);});
+      let extra=0;
+      if(item.ts){
+        ctx.font='italic 10px system-ui';ctx.fillStyle='#888';
+        ctx.fillText(`(${item.ts})`,TMARGIN+16,y+LINEH*(wrapped.length+1)-4);
+        extra=LINEH;
+      }
+      y+=wrapped.length*LINEH+5+extra;
+    }
+  });
+  // Images
+  const pk=`${domain}§${pi}`;
+  (st.pageImages[pk]||[]).forEach((img,iIdx)=>{
+    if(img._el&&img._el.complete&&img._el.naturalWidth){
+      ctx.drawImage(img._el,img.x,img.y,img.w,img.h);
+    }
+    const sel=selImgKey===pk&&selImgIdx===iIdx;
+    if(sel){
+      ctx.strokeStyle='#2E86C1';ctx.lineWidth=2;ctx.strokeRect(img.x,img.y,img.w,img.h);
+      ctx.fillStyle='#2E86C1';ctx.fillRect(img.x+img.w-9,img.y+img.h-9,9,9);
+    } else {
+      ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=1;ctx.strokeRect(img.x,img.y,img.w,img.h);
+    }
+  });
+  updatePageInfo();
+}
+
+function wrapTxt(ctx,text,maxW,size){
+  ctx.font=size+'px system-ui';
+  const words=text.split(' ');const lines=[];let cur='';
+  words.forEach(w=>{
+    const t=cur?cur+' '+w:w;
+    if(ctx.measureText(t).width<=maxW){cur=t;}
+    else{if(cur)lines.push(cur);cur=w;}
+  });
+  if(cur)lines.push(cur);
+  return lines.length?lines:[text];
+}
+
+function prevPage(){if(st.curPage>0){st.curPage--;renderPreview();}}
+function nextPage(){if(st.curPage<pages.length-1){st.curPage++;renderPreview();}}
+
+// ============================================================
+// IMAGES ON CANVAS (drag / resize)
+// ============================================================
+function mkImgEl(img){
+  const el=new Image();
+  el.onload=()=>{img._el=el;renderPreview();};
+  el.src=img.dataUrl;
+  img._el=el;
+}
+
+function addPageImg(e){
+  const f=e.target.files[0];if(!f||!pages.length)return;
+  const{domain,pi}=pages[Math.min(st.curPage,pages.length-1)];
+  const pk=`${domain}§${pi}`;
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    const el=new Image();
+    el.onload=()=>{
+      const ms=200;let w=el.width,h=el.height;
+      if(w>ms){h=Math.round(h*ms/w);w=ms;}if(h>ms){w=Math.round(w*ms/h);h=ms;}
+      const img={dataUrl:ev.target.result,x:60,y:HDR+20,w,h,_el:el};
+      if(!st.pageImages[pk])st.pageImages[pk]=[];
+      st.pageImages[pk].push(img);
+      selImgKey=pk;selImgIdx=st.pageImages[pk].length-1;
+      renderPreview();
+    };el.src=ev.target.result;
+  };rd.readAsDataURL(f);e.target.value='';
+}
+
+function deleteSelImg(){
+  if(!selImgKey||selImgIdx===null)return;
+  const arr=st.pageImages[selImgKey];if(!arr)return;
+  arr.splice(selImgIdx,1);
+  if(!arr.length)delete st.pageImages[selImgKey];
+  selImgKey=null;selImgIdx=null;renderPreview();
+}
+
+function setupCanvasEvents(){
+  const c=document.getElementById('preview-canvas');if(!c)return;
+  let mode=null,sx,sy,ox,oy,ow,oh;
+
+  c.addEventListener('mousedown',e=>{
+    if(!pages.length)return;
+    const r=c.getBoundingClientRect();
+    const sx2=c.width/r.width,sy2=c.height/r.height;
+    const mx=(e.clientX-r.left)*sx2,my=(e.clientY-r.top)*sy2;
+    const{domain,pi}=pages[Math.min(st.curPage,pages.length-1)];
+    const pk=`${domain}§${pi}`;
+    const imgs=st.pageImages[pk]||[];
+    for(let i=imgs.length-1;i>=0;i--){
+      const im=imgs[i];
+      if(mx>=im.x+im.w-12&&mx<=im.x+im.w&&my>=im.y+im.h-12&&my<=im.y+im.h){
+        mode='resize';selImgKey=pk;selImgIdx=i;sx=mx;sy=my;ow=im.w;oh=im.h;
+        renderPreview();return;
+      }
+      if(mx>=im.x&&mx<=im.x+im.w&&my>=im.y&&my<=im.y+im.h){
+        mode='drag';selImgKey=pk;selImgIdx=i;sx=mx;sy=my;ox=im.x;oy=im.y;
+        renderPreview();return;
+      }
+    }
+    selImgKey=null;selImgIdx=null;mode=null;renderPreview();
+  });
+
+  c.addEventListener('mousemove',e=>{
+    const r=c.getBoundingClientRect();
+    const scx=c.width/r.width,scy=c.height/r.height;
+    const mx=(e.clientX-r.left)*scx,my=(e.clientY-r.top)*scy;
+    if(mode&&selImgKey!==null&&selImgIdx!==null){
+      const imgs=st.pageImages[selImgKey];if(!imgs)return;
+      const im=imgs[selImgIdx];
+      if(mode==='drag'){im.x=Math.max(0,ox+(mx-sx));im.y=Math.max(0,oy+(my-sy));}
+      else{im.w=Math.max(20,ow+(mx-sx));im.h=Math.max(20,oh+(my-sy));}
+      renderPreview();
+    } else {
+      if(!pages.length)return;
+      const{domain,pi}=pages[Math.min(st.curPage,pages.length-1)];
+      const pk=`${domain}§${pi}`;
+      const imgs=st.pageImages[pk]||[];
+      let cur='default';
+      for(let i=imgs.length-1;i>=0;i--){
+        const im=imgs[i];
+        if(mx>=im.x+im.w-12&&mx<=im.x+im.w&&my>=im.y+im.h-12&&my<=im.y+im.h){cur='nwse-resize';break;}
+        if(mx>=im.x&&mx<=im.x+im.w&&my>=im.y&&my<=im.y+im.h){cur='grab';break;}
+      }
+      c.style.cursor=cur;
+    }
+  });
+
+  c.addEventListener('mouseup',()=>{mode=null;c.style.cursor='default';});
+  c.addEventListener('mouseleave',()=>{mode=null;});
+
+  c.addEventListener('contextmenu',e=>{
+    e.preventDefault();
+    if(!pages.length)return;
+    const r=c.getBoundingClientRect();
+    const scx=c.width/r.width,scy=c.height/r.height;
+    const mx=(e.clientX-r.left)*scx,my=(e.clientY-r.top)*scy;
+    const{domain,pi}=pages[Math.min(st.curPage,pages.length-1)];
+    const pk=`${domain}§${pi}`;
+    const imgs=st.pageImages[pk]||[];
+    for(let i=imgs.length-1;i>=0;i--){
+      const im=imgs[i];
+      if(mx>=im.x&&mx<=im.x+im.w&&my>=im.y&&my<=im.y+im.h){
+        if(confirm('Supprimer cette image ?')){
+          imgs.splice(i,1);if(!imgs.length)delete st.pageImages[pk];
+          selImgKey=null;selImgIdx=null;renderPreview();
+        }
+        return;
+      }
+    }
+  });
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function renderAdminList(){
+  const l=document.getElementById('admin-list');if(!l)return;
+  l.innerHTML='';
+  if(!st.domainOrder.length){
+    l.innerHTML='<div style="color:#888;font-size:13px;padding:10px">Aucun domaine. Importez un fichier ou ajoutez un domaine.</div>';return;
+  }
+  st.domainOrder.forEach((d,di)=>{
+    const color=st.domainColors[d]||DCOLORS[0];
+    const subs=st.available[d]||{};
+    const total=Object.values(subs).reduce((a,b)=>a+b.length,0);
+    const wrap=document.createElement('div');wrap.className='adm-domain';
+    const hdr=document.createElement('div');hdr.className='adm-hdr';
+    hdr.innerHTML=`
+      <div class="dot" style="background:${color}"></div>
+      <div class="lbl">${d} <span style="font-weight:400;color:#888;font-size:11px">${Object.keys(subs).length} sous-dom. · ${total} compétences</span></div>
+      <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editColor(${di})" title="Couleur">🎨</button>
+      <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();renameDom(${di})" title="Renommer">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteDom(${di})" title="Supprimer">🗑️</button>`;
+    hdr.onclick=()=>body.classList.toggle('open');
+    const body=document.createElement('div');body.className='adm-body';
+    body.id='ab'+di;
+    // Subdomains
+    Object.entries(subs).forEach(([sub,comps])=>{
+      const sdiv=document.createElement('div');sdiv.style.marginBottom='8px';
+      sdiv.innerHTML=`
+        <div class="adm-sub">
+          <span>📁 <strong>${sub}</strong> (${comps.length})</span>
+          <div class="bgrp" style="margin:0">
+            <button class="btn btn-ghost btn-sm" onclick="renameSub(${di},'${esc(sub)}')">✏️</button>
+            <button class="btn btn-primary btn-sm" onclick="openAddComp(${di},'${esc(sub)}')">➕</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSub(${di},'${esc(sub)}')">🗑️</button>
+          </div>
+        </div>
+        <div>${comps.map((c,ci)=>`
+          <div class="adm-comp">
+            <span>• ${c}</span>
+            <button class="btn btn-ghost btn-sm" onclick="editComp(${di},'${esc(sub)}',${ci})">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteComp(${di},'${esc(sub)}',${ci})">🗑️</button>
+          </div>`).join('')}</div>`;
+      body.appendChild(sdiv);
+    });
+    const addSubBtn=document.createElement('button');
+    addSubBtn.className='btn btn-primary btn-sm';addSubBtn.style.marginTop='8px';
+    addSubBtn.textContent='➕ Ajouter sous-domaine';
+    addSubBtn.onclick=()=>{_pendSub=st.domainOrder[di];document.getElementById('m-sn').value='';openModal('m-add-sub');};
+    body.appendChild(addSubBtn);
+    wrap.appendChild(hdr);wrap.appendChild(body);l.appendChild(wrap);
+  });
+}
+function esc(s){return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+function editColor(di){
+  const d=st.domainOrder[di];
+  const inp=document.createElement('input');inp.type='color';inp.value=st.domainColors[d]||'#2E86C1';
+  inp.oninput=e=>{st.domainColors[d]=e.target.value;saveComps();renderAdminList();renderTree();if(st.curPage>=0)renderPreview();};
+  inp.click();
+}
+function renameDom(di){
+  const d=st.domainOrder[di];
+  const n=prompt('Nouveau nom :',d);if(!n||!n.trim()||n.trim()===d)return;
+  const t=n.trim();if(st.domainOrder.includes(t)){alert('Existe déjà.');return;}
+  st.domainOrder[di]=t;st.available[t]=st.available[d];st.domainColors[t]=st.domainColors[d];
+  delete st.available[d];delete st.domainColors[d];
+  st.selectedItems.forEach(x=>{if(x.domain===d)x.domain=t;});
+  saveComps();renderAdminList();renderTree();rebuildPages();
+}
+function deleteDom(di){
+  const d=st.domainOrder[di];
+  if(!confirm(`Supprimer le domaine "${d}" ?`))return;
+  st.domainOrder.splice(di,1);delete st.available[d];delete st.domainColors[d];
+  st.selectedItems=st.selectedItems.filter(x=>x.domain!==d);
+  saveComps();renderAdminList();renderTree();renderSelList();rebuildPages();
+}
+function renameSub(di,sub){
+  const d=st.domainOrder[di];
+  const n=prompt('Nouveau nom :',sub);if(!n||!n.trim()||n.trim()===sub)return;
+  const t=n.trim();
+  const comps=st.available[d][sub];
+  const newSubs={};
+  for(const[k,v]of Object.entries(st.available[d])){newSubs[k===sub?t:k]=v;}
+  st.available[d]=newSubs;
+  st.selectedItems.forEach(x=>{if(x.domain===d&&x.subdomain===sub)x.subdomain=t;});
+  saveComps();renderAdminList();renderTree();rebuildPages();
+}
+function deleteSub(di,sub){
+  const d=st.domainOrder[di];
+  if(!confirm(`Supprimer le sous-domaine "${sub}" ?`))return;
+  delete st.available[d][sub];
+  st.selectedItems=st.selectedItems.filter(x=>!(x.domain===d&&x.subdomain===sub));
+  saveComps();renderAdminList();renderTree();renderSelList();rebuildPages();
+}
+function openAddComp(di,sub){
+  _pendCompD=st.domainOrder[di];_pendCompS=sub;
+  document.getElementById('m-ct').value='';openModal('m-add-comp');
+}
+function doAddComp(){
+  const t=document.getElementById('m-ct').value.trim();
+  if(!t||!_pendCompD||!_pendCompS)return;
+  if(!st.available[_pendCompD])st.available[_pendCompD]={};
+  if(!st.available[_pendCompD][_pendCompS])st.available[_pendCompD][_pendCompS]=[];
+  if(st.available[_pendCompD][_pendCompS].includes(t)){alert('Existe déjà.');return;}
+  st.available[_pendCompD][_pendCompS].push(t);
+  saveComps();closeModal('m-add-comp');renderAdminList();renderTree();
+  if(curDom===_pendCompD&&curSub===_pendCompS)renderCompList(_pendCompD,_pendCompS);
+}
+function editComp(di,sub,ci){
+  const d=st.domainOrder[di];const old=st.available[d][sub][ci];
+  const n=prompt('Modifier :',old);if(!n||!n.trim())return;
+  st.available[d][sub][ci]=n.trim();
+  st.selectedItems.forEach(x=>{if(x.domain===d&&x.subdomain===sub&&x.text===old)x.text=n.trim();});
+  saveComps();renderAdminList();if(curDom===d&&curSub===sub)renderCompList(d,sub);rebuildPages();
+}
+function deleteComp(di,sub,ci){
+  const d=st.domainOrder[di];const old=st.available[d][sub][ci];
+  if(!confirm('Supprimer cette compétence ?'))return;
+  st.available[d][sub].splice(ci,1);
+  st.selectedItems=st.selectedItems.filter(x=>!(x.domain===d&&x.subdomain===sub&&x.text===old));
+  saveComps();renderAdminList();if(curDom===d&&curSub===sub)renderCompList(d,sub);renderSelList();rebuildPages();
+}
+function doAddDomain(){
+  const name=document.getElementById('m-dn').value.trim();
+  const color=document.getElementById('m-dc').value;
+  if(!name){alert('Entrez un nom.');return;}
+  if(st.domainOrder.includes(name)){alert('Existe déjà.');return;}
+  st.domainOrder.push(name);st.available[name]={};st.domainColors[name]=color;
+  saveComps();closeModal('m-add-domain');renderAdminList();renderTree();
+  document.getElementById('import-card').style.display='none';
+}
+function doAddSub(){
+  const name=document.getElementById('m-sn').value.trim();
+  if(!name||!_pendSub)return;
+  if(st.available[_pendSub][name]){alert('Existe déjà.');return;}
+  st.available[_pendSub][name]=[];
+  saveComps();closeModal('m-add-sub');renderAdminList();renderTree();
+}
+
+// ============================================================
+// PDF EXPORT
+// ============================================================
+function exportPDF(){
+  try{
+    const{jsPDF}=window.jspdf;
+    if(!jsPDF){alert('jsPDF non disponible');return;}
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const PW=297,PH=210;
+    // Cover
+    doc.setFillColor(110,110,110);doc.rect(0,0,PW,20,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont('helvetica','bold');
+    doc.text("PROFIL DE L'ÉLÈVE",PW/2,13,{align:'center'});
+    doc.setFillColor(107,142,35);doc.roundedRect(12,24,100,35,3,3,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(11);let ty=32;
+    if(st.profil.nom){doc.text('Nom : '+st.profil.nom,16,ty);ty+=8;}
+    if(st.profil.prenom){doc.text('Prénom : '+st.profil.prenom,16,ty);ty+=8;}
+    if(st.profil.naissance){doc.text('Né(e) le : '+st.profil.naissance,16,ty);}
+    // Photo on cover
+    if(st.profil.photoDataUrl){
+      try{doc.addImage(st.profil.photoDataUrl,'JPEG',PW-55,22,40,38);}catch(ex){}
+    }
+    // Pages
+    pages.forEach(({domain,pi},fi)=>{
+      doc.addPage('a4','landscape');
+      const pg=(dpMap[domain]||[])[pi]||[];
+      const color=st.domainColors[domain]||DCOLORS[0];
+      const hex=color.replace('#','');
+      const cr=parseInt(hex.substr(0,2),16),cg=parseInt(hex.substr(2,2),16),cb=parseInt(hex.substr(4,2),16);
+      doc.setFillColor(cr,cg,cb);doc.rect(0,0,PW,18,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+      doc.text(domain,10,12);
+      let y=26;
+      pg.forEach(({isH,sub,item})=>{
+        if(y>PH-8)return;
+        if(isH){
+          doc.setFont('helvetica','bold');doc.setTextColor(cr,cg,cb);doc.setFontSize(10);
+          doc.text(sub,10,y);y+=7;
+        }else{
+          const pr=st.profil.prenom?st.profil.prenom+' ':'';
+          const txt=`• ${pr}${item.text}`;
+          doc.setFont('helvetica','normal');doc.setTextColor(0,0,0);doc.setFontSize(9);
+          const lines=doc.splitTextToSize(txt,PW-20);
+          lines.forEach(ln=>{if(y<=PH-8){doc.text(ln,12,y);y+=5.5;}});
+          if(item.ts&&y<=PH-8){
+            doc.setFont('helvetica','italic');doc.setTextColor(120,120,120);doc.setFontSize(8);
+            doc.text(`(${item.ts})`,16,y);y+=5;
+            doc.setTextColor(0,0,0);
+          }
+          y+=2;
+        }
+      });
+      // Page images
+      const pk=`${domain}§${pi}`;
+      (st.pageImages[pk]||[]).forEach(img=>{
+        if(!img.dataUrl)return;
+        // Canvas coords (820×490) → PDF mm (297×210)
+        const sx=PW/820,sy=PH/490;
+        const px2=img.x*sx,py2=img.y*sy,pw2=img.w*sx,ph2=img.h*sy;
+        try{doc.addImage(img.dataUrl,'JPEG',px2,py2,pw2,ph2);}catch(ex){}
+      });
+    });
+    doc.save(`${st.profil.prenom||'eleve'}_${st.profil.nom||'projet'}_livret.pdf`);
+  }catch(ex){alert('Erreur PDF : '+ex.message);}
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(m=>m.classList.remove('open'));});
+
+// ============================================================
+// RESTORE UI FROM STATE
+// ============================================================
+function restoreUI(){
+  document.getElementById('i-nom').value=st.profil.nom||'';
+  document.getElementById('i-prenom').value=st.profil.prenom||'';
+  document.getElementById('i-naissance').value=st.profil.naissance||'';
+  document.getElementById('i-mois').value=st.mois||'';
+  document.getElementById('i-annee').value=st.annee||'';
+  if(st.profil.photoDataUrl){const p=document.getElementById('photo-prev');p.src=st.profil.photoDataUrl;p.style.display='block';}
+  buildSecUI();
+}
+function renderAll(){renderCover();renderTree();renderSelList();renderAdminList();rebuildPages();renderPreview();}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load',()=>{
+  const hasComps=loadCompsLS();
+  buildSecUI();
+  renderCover();
+  setupCanvasEvents();
+  rebuildPages();
+  if(hasComps){
+    document.getElementById('import-card').style.display='none';
+    renderTree();
+  }
+  // Resize observer for cover canvas
+  const resizeObs=new ResizeObserver(()=>renderCover());
+  const cc=document.getElementById('cover-canvas');if(cc)resizeObs.observe(cc);
+});
+</script>
 </body>
 </html>
