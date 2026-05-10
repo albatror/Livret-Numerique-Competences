@@ -745,7 +745,7 @@ function rebuildPages(){
       pg.push({isH:true,sub,item:null});y+=SUBH;
       items.forEach(it=>{
         const lines=Math.max(1,Math.ceil(it.text.length/55));
-        const need=lines*LINEH+(it.ts?LINEH:0)+5;
+        const need=lines*LINEH+5;
         if(y+need>CTOP+contentH&&pg.length)flush(sub);
         pg.push({isH:false,sub,item:it});y+=need;
       });
@@ -801,13 +801,16 @@ function renderPreview(){
       const wrapped=wrapTxt(ctx,full,maxW,12);
       ctx.font='12px system-ui';ctx.fillStyle='#222';
       wrapped.forEach((ln,li)=>{ctx.fillText(li===0?ln:'  '+ln,TMARGIN+8,y+LINEH*(li+1)-4);});
-      let extra=0;
       if(item.ts){
+        const lastLi=wrapped.length-1;
+        const lastTxt=lastLi===0?wrapped[0]:'  '+wrapped[lastLi];
+        ctx.font='12px system-ui';
+        const tw=ctx.measureText(lastTxt).width;
         ctx.font='italic 10px system-ui';ctx.fillStyle='#888';
-        ctx.fillText(`(${item.ts})`,TMARGIN+16,y+LINEH*(wrapped.length+1)-4);
-        extra=LINEH;
+        ctx.fillText(` (${item.ts})`,TMARGIN+8+tw,y+LINEH*wrapped.length-4);
+        ctx.fillStyle='#222';
       }
-      y+=wrapped.length*LINEH+5+extra;
+      y+=wrapped.length*LINEH+5;
     }
   });
   // Images
@@ -1137,12 +1140,18 @@ function exportPDF(){
           const txt=`• ${pr}${item.text}`;
           doc.setFont('helvetica','normal');doc.setTextColor(0,0,0);doc.setFontSize(9);
           const lines=doc.splitTextToSize(txt,PW-20);
-          lines.forEach(ln=>{if(y<=PH-8){doc.text(ln,12,y);y+=5.5;}});
-          if(item.ts&&y<=PH-8){
-            doc.setFont('helvetica','italic');doc.setTextColor(120,120,120);doc.setFontSize(8);
-            doc.text(`(${item.ts})`,16,y);y+=5;
-            doc.setTextColor(0,0,0);
-          }
+          lines.forEach((ln,li)=>{
+            if(y<=PH-8){
+              if(li===lines.length-1&&item.ts){
+                doc.text(ln,12,y);
+                const tw=doc.getTextWidth?doc.getTextWidth(ln):(doc.getStringUnitWidth(ln)*9/doc.internal.scaleFactor);
+                doc.setFont('helvetica','italic');doc.setTextColor(120,120,120);doc.setFontSize(8);
+                doc.text(` (${item.ts})`,12+tw,y);
+                doc.setFont('helvetica','normal');doc.setTextColor(0,0,0);doc.setFontSize(9);
+              }else{doc.text(ln,12,y);}
+              y+=5.5;
+            }
+          });
           y+=2;
         }
       });
