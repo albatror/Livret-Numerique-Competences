@@ -1102,8 +1102,8 @@ function doAddSub(){
 // ============================================================
 function exportPDF(){
   try{
-    const{jsPDF}=window.jspdf;
-    if(!jsPDF){alert('jsPDF non disponible');return;}
+    const jsPDF=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF||(window.jspdf);
+    if(!jsPDF||typeof jsPDF!=='function'){alert('jsPDF non disponible.\nVérifiez que jspdf.umd.min.js est dans le même dossier que index.html.');return;}
     const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
     const PW=297,PH=210;
     // Cover
